@@ -73,3 +73,18 @@ Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium dolor
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
+
+## GFM Features Exercise
+
+### Strikethrough
+
+The previous rollback strategy ~~required a full cluster restart~~ has been replaced with a canary-based deployment model. Action item #2 concerning ~~alerting improvements~~ pool-saturation detection was completed ahead of schedule.
+
+### Definition Lists
+
+Canary Deployment
+: A progressive rollout strategy where a small subset of instances receives the new version first. Traffic is gradually shifted after health checks pass.
+
+Blue-Green Deployment
+: Two identical environments are maintained. The inactive environment is updated, tested, and then traffic is switched over. The old environment is kept as a **warm standby** for `rollback_window_minutes` minutes.
+

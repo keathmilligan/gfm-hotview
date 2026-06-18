@@ -73,3 +73,23 @@ Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium dolor
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
+
+## GFM Features Exercise
+
+### Alert Types
+
+> [!NOTE]
+> Deployments to the payment-gateway production fleet require two-person approval in the deployment dashboard.
+
+> [!TIP]
+> Pre-warm the connection pool by sending synthetic health-check requests at 10% of peak QPS for 2 minutes before shifting live traffic.
+
+> [!IMPORTANT]
+> The PCI-DSS compliance scan must pass with **zero** findings before the deploy can proceed. The scan runs automatically as a pipeline gate.
+
+> [!WARNING]
+> Rolling back a payment-gateway deployment while in-flight transactions are being processed may cause duplicate charges. Always pause the upstream order queue first.
+
+> [!CAUTION]
+> Running more than 3 concurrent deployments to the same region will exhaust the shared HSM capacity and cause TLS handshake failures across all payment endpoints.
+

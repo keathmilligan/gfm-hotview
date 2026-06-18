@@ -175,7 +175,15 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 | 500  | Internal server error | Yes (exponential backoff) |
 | 503  | Service unavailable (degraded) | Yes |
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+The recovery procedure relies on pre-staged AMIs stored in a separate account. For the full IAM policy document, see the security runbook.[^recovery-iam]
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+[^recovery-iam]: The IAM recovery role is scoped to `ec2:DescribeImages` and `ec2:RunInstances` on the backup account. Cross-account trust is established via an external ID to prevent the confused deputy problem.
+
+## GFM Features Exercise
+
+### Footnotes
+
+The failover automation checklist includes a step to verify DNS propagation before directing traffic to the standby region.[^1]
+
+[^1]: DNS propagation typically takes 60--300 seconds depending on TTL configuration. Use `dig +short <record>` to confirm resolution before proceeding.
 

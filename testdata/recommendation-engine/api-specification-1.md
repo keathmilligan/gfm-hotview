@@ -207,3 +207,9 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+## GFM Features Exercise
+
+### Keyboard Tags
+
+Press <kbd>Ctrl</kbd> + <kbd>K</kbd> to open the recommendation debug panel. Use <kbd>&uarr;</kbd> and <kbd>&darr;</kbd> to navigate candidate items, then press <kbd>Enter</kbd> to simulate a recommendation for the selected user profile. To force a full model retrain, use <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>T</kbd>.
+

@@ -73,3 +73,13 @@ Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium dolor
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
+
+## GFM Features Exercise
+
+### Keyboard Tags
+
+To trigger a manual circuit-breaker reset on the gateway, press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd>. For emergency rollback, use <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>B</kbd>.
+
+### Subscript and Superscript
+
+The CO<sub>2</sub> footprint of this service is tracked per request. Throughput scales as O(n<sup>2</sup>) under worst-case fan-out, so the 99<sup>th</sup> percentile latency must be monitored closely. The base formula is E = mc<sup>2</sup>, and water is H<sub>2</sub>O.

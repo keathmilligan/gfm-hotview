@@ -73,3 +73,23 @@ Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium dolor
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
+
+## GFM Features Exercise
+
+### HTML Details / Summary
+
+<details>
+<summary>GDPR Data Subject Rights Checklist</summary>
+
+The following rights must be supported per GDPR Articles 15--22. Track implementation status for each:
+
+- [x] **Art. 15 -- Right of Access:** Export endpoint returns machine-readable JSON
+- [x] **Art. 16 -- Right to Rectification:** Self-service profile edit API
+- [x] **Art. 17 -- Right to Erasure:** Hard-delete cascade across all services within 72 hours
+- [ ] **Art. 18 -- Right to Restriction:** Flag user record with processing restriction bit
+- [x] **Art. 20 -- Right to Portability:** Data export in JSON and CSV formats via `GET /api/v2/export`
+
+Restriction processing (Art. 18) is targeted for Q4 2026 delivery.
+
+</details>
+

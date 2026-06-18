@@ -75,3 +75,17 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+## GFM Features Exercise
+
+### Strikethrough
+
+The ~~Elasticsearch 7.x~~ OpenSearch 2.x migration is now complete. The legacy ~~fuzzy-matching module~~ has been retired in favor of vector similarity search. Users on ~~deprecated index aliases~~ should migrate to the new naming convention.
+
+### Definition Lists
+
+TF-IDF
+: Term Frequency--Inverse Document Frequency. A classical ranking function that scores documents based on term rarity and frequency. Still used for **lexical search** fallback when vector embeddings are unavailable.
+
+BM25
+: Best Match 25. An improved probabilistic ranking function that supersedes TF-IDF. It applies *document length normalization* and a `k1` saturation parameter to prevent term-frequency bias.
+

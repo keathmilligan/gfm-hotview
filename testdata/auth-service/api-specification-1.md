@@ -73,3 +73,20 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+## GFM Features Exercise
+
+### HTML Details / Summary
+
+<details>
+<summary>OAuth 2.0 Token Lifetimes by Grant Type</summary>
+
+| Grant Type | Access Token | Refresh Token |
+|------------|-------------|---------------|
+| Authorization Code | 1 hour | 90 days |
+| Client Credentials | 30 minutes | None |
+| Device Code | 15 minutes | 30 days |
+
+Refresh tokens can be rotated on each use. Configure `refresh_token_rotation = true` in the IdP settings.
+
+</details>
+

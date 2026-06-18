@@ -79,3 +79,9 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+## GFM Features Exercise
+
+### Subscript and Superscript
+
+The notification delivery pipeline uses exponential backoff with a base delay of 2<sup>n</sup> milliseconds, where *n* is the attempt number. The 50<sup>th</sup> percentile (P<sub>50</sub>) delivery latency is 120 ms, while the 99<sup>th</sup> percentile (P<sub>99</sub>) is under 800 ms. Air-quality notifications include PM<sub>2.5</sub> and PM<sub>10</sub> readings, and financial alerts display values like ¥1.2 × 10<sup>9</sup>.
+

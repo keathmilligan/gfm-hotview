@@ -52,3 +52,17 @@ graph TD
 :rocket: :tada:
 
 A [relative link](sub/page.md).
+
+## GFM Features Exercise
+
+### Definition Lists
+
+Render Pipeline
+: The component responsible for converting raw markdown into styled output blocks.
+
+Plugin System with *extensions*
+: A hot-reloadable architecture that supports **custom parsers** and `render hooks`.
+
+### Strikethrough
+
+The ~~legacy ASCII renderer~~ has been replaced with a full GFM-compliant engine. Users may notice that ~~some deprecated syntax~~ is no longer supported in tables and blockquotes.

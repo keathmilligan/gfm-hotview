@@ -84,3 +84,23 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+## GFM Features Exercise
+
+### HTML Details / Summary
+
+<details>
+<summary>Webhook Event Types Reference</summary>
+
+The following event types are emitted by the order-management service. Subscribe to `order.*` to receive all order lifecycle events.
+
+| Event | Payload Schema | At-Least-Once |
+|-------|---------------|---------------|
+| `order.created` | `OrderV2` | Yes |
+| `order.fulfilled` | `FulfillmentV1` | Yes |
+| `order.cancelled` | `CancellationV1` | Yes |
+| `order.refunded` | `RefundV1` | No (idempotent) |
+
+Each event includes an `x-idempotency-key` header for deduplication.
+
+</details>
+

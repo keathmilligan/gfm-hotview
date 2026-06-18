@@ -79,3 +79,11 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+## GFM Features Exercise
+
+### Footnotes
+
+The reporting warehouse uses a warm standby in a separate availability zone. Failover is triggered when the health check endpoint returns 5xx for more than 30 consecutive seconds.[^health-check]
+
+[^health-check]: The health check endpoint is `GET /healthz` and checks connectivity to the primary database, Redis, and the object store. It responds with a JSON body containing per-dependency status. Any dependency returning "degraded" for 30 seconds triggers the failover automation.
+

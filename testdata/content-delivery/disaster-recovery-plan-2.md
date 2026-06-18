@@ -123,3 +123,11 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+## GFM Features Exercise
+
+### Footnotes
+
+The CDN edge nodes rely on origin shield to collapse requests during cache fill. When the shield itself is unavailable, requests fan out directly to origin, which can overwhelm the backend.[^cdn-fanout]
+
+[^cdn-fanout]: Origin shield is typically deployed as a regional mid-tier cache in `us-east-1`, `eu-west-1`, and `ap-southeast-1`. A single-region shield outage can increase origin load by 8--12x, depending on cache-hit ratio at the edge.
+

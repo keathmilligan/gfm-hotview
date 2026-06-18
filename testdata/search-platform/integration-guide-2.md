@@ -52,8 +52,25 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 ### 3.1 Request Lifecycle
 
-```
-Client → Gateway [authN] → Service [validate] → Cache [lookup] → DB [if miss] → Response
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant G as Gateway
+  participant S as Service
+  participant Cache
+  participant DB
+  C->>G: Request
+  G->>G: authN
+  G->>S: Forward
+  S->>S: validate
+  S->>Cache: lookup
+  alt cache miss
+    Cache->>DB: query
+    DB-->>Cache: result
+  end
+  Cache-->>S: data
+  S-->>G: response
+  G-->>C: Response
 ```
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
