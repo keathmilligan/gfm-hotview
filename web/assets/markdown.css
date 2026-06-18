@@ -1,0 +1,103 @@
+.markdown-body {
+  line-height: 1.5;
+  word-wrap: break-word;
+  color: var(--gv-fg);
+}
+.markdown-body > *:first-child { margin-top: 0 !important; }
+.markdown-body > *:last-child { margin-bottom: 0 !important; }
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3,
+.markdown-body h4, .markdown-body h5, .markdown-body h6 {
+  margin-top: 24px; margin-bottom: 16px; font-weight: 600; line-height: 1.25;
+}
+.markdown-body h1 { font-size: 2em; padding-bottom: .3em; border-bottom: 1px solid var(--gv-border); }
+.markdown-body h2 { font-size: 1.5em; padding-bottom: .3em; border-bottom: 1px solid var(--gv-border); }
+.markdown-body h3 { font-size: 1.25em; }
+.markdown-body h4 { font-size: 1em; }
+.markdown-body h5 { font-size: .875em; }
+.markdown-body h6 { font-size: .85em; color: var(--gv-muted); }
+
+.markdown-body .heading-anchor {
+  float: left; margin-left: -20px; padding-right: 4px;
+  opacity: 0; text-decoration: none; color: var(--gv-muted);
+}
+.markdown-body h1:hover .heading-anchor,
+.markdown-body h2:hover .heading-anchor,
+.markdown-body h3:hover .heading-anchor,
+.markdown-body h4:hover .heading-anchor,
+.markdown-body h5:hover .heading-anchor,
+.markdown-body h6:hover .heading-anchor { opacity: 1; }
+
+.markdown-body p, .markdown-body blockquote, .markdown-body ul,
+.markdown-body ol, .markdown-body dl, .markdown-body table, .markdown-body pre {
+  margin-top: 0; margin-bottom: 16px;
+}
+
+.markdown-body a { color: var(--gv-accent); text-decoration: none; }
+.markdown-body a:hover { text-decoration: underline; }
+
+.markdown-body blockquote {
+  padding: 0 1em; color: var(--gv-muted);
+  border-left: .25em solid var(--gv-border);
+}
+
+.markdown-body ul, .markdown-body ol { padding-left: 2em; }
+.markdown-body li + li { margin-top: .25em; }
+.markdown-body li.task-list-item { list-style-type: none; }
+.markdown-body li.task-list-item input { margin: 0 .4em .25em -1.4em; vertical-align: middle; }
+
+.markdown-body code, .markdown-body tt {
+  padding: .2em .4em; margin: 0; font-size: 85%;
+  background: color-mix(in srgb, var(--gv-fg) 8%, transparent);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+.markdown-body pre {
+  padding: 16px; overflow: auto; font-size: 85%; line-height: 1.45;
+  background: var(--gv-sidebar-bg); border-radius: 6px;
+}
+.markdown-body pre code { padding: 0; background: transparent; font-size: 100%; }
+
+.markdown-body table { display: block; width: max-content; max-width: 100%; overflow: auto; border-collapse: collapse; }
+.markdown-body table th, .markdown-body table td { padding: 6px 13px; border: 1px solid var(--gv-border); }
+.markdown-body table tr:nth-child(2n) { background: var(--gv-sidebar-bg); }
+
+.markdown-body img { max-width: 100%; background: var(--gv-bg); }
+.markdown-body hr { height: .25em; padding: 0; margin: 24px 0; background: var(--gv-border); border: 0; }
+
+.markdown-body del { text-decoration: line-through; }
+
+/* GitHub-style alerts */
+.markdown-alert {
+  padding: 8px 16px; margin-bottom: 16px; border-left: .25em solid var(--gv-border);
+  color: inherit;
+}
+.markdown-alert > :first-child { margin-top: 0; }
+.markdown-alert > :last-child { margin-bottom: 0; }
+.markdown-alert .markdown-alert-title {
+  display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 8px;
+}
+.markdown-alert .octicon { fill: currentColor; }
+.markdown-alert-note { border-left-color: #0969da; }
+.markdown-alert-note .markdown-alert-title { color: #0969da; }
+.markdown-alert-tip { border-left-color: #1a7f37; }
+.markdown-alert-tip .markdown-alert-title { color: #1a7f37; }
+.markdown-alert-important { border-left-color: #8250df; }
+.markdown-alert-important .markdown-alert-title { color: #8250df; }
+.markdown-alert-warning { border-left-color: #9a6700; }
+.markdown-alert-warning .markdown-alert-title { color: #9a6700; }
+.markdown-alert-caution { border-left-color: #cf222e; }
+.markdown-alert-caution .markdown-alert-title { color: #cf222e; }
+
+html[data-theme="dark"] .markdown-alert-note .markdown-alert-title { color: #4493f8; }
+html[data-theme="dark"] .markdown-alert-tip .markdown-alert-title { color: #3fb950; }
+html[data-theme="dark"] .markdown-alert-important .markdown-alert-title { color: #ab7df8; }
+html[data-theme="dark"] .markdown-alert-warning .markdown-alert-title { color: #d29922; }
+html[data-theme="dark"] .markdown-alert-caution .markdown-alert-title { color: #f85149; }
+
+.markdown-body .mermaid { background: transparent; text-align: center; }
+
+/* Directory listing (no index) */
+.dir-listing { list-style: none; padding-left: 0; }
+.dir-listing li { padding: 4px 0; border-bottom: 1px solid var(--gv-border); }
+.dir-listing a { color: var(--gv-accent); text-decoration: none; }

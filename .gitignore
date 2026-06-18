@@ -1,0 +1,6 @@
+# Build artifacts
+/gfm-hotview
+/gfm-hotview.exe
+/dist/
+*.test
+*.out
