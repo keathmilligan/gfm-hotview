@@ -78,8 +78,22 @@ func (t *alertTransformer) Transform(node *ast.Document, reader text.Reader, _ p
 
 		alert := &alertNode{AlertType: atype}
 
-		// Drop the marker line from the first paragraph; if it was the only
-		// line, remove the paragraph entirely.
+		// Drop the marker line text from the paragraph.
+		// The inline parser has tokenized the content into child nodes,
+		// so we must remove the nodes that correspond to the marker.
+		markerEnd := first.Stop
+		var markerNodes []ast.Node
+		for c := para.FirstChild(); c != nil; c = c.NextSibling() {
+			if t, ok := c.(*ast.Text); ok {
+				if t.Segment.Stop <= markerEnd {
+					markerNodes = append(markerNodes, c)
+				}
+			}
+		}
+		for _, n := range markerNodes {
+			para.RemoveChild(para, n)
+		}
+		// If the marker was the only content, drop the paragraph entirely.
 		if para.Lines().Len() == 1 {
 			bq.RemoveChild(bq, para)
 		} else {

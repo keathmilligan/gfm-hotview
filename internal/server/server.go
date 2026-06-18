@@ -89,17 +89,15 @@ func (s *Server) logMiddleware(next http.Handler) http.Handler {
 // ---- Page shell ----
 
 type pageData struct {
-	Title            string
-	BrandName        string
-	Theme            string
-	TreeHTML         template.HTML
-	BreadcrumbHTML   template.HTML
-	ContentHTML      template.HTML
-	TOCHTML          template.HTML
-	InitialPathJSON  template.JS
-	Reload           bool
-	HasVendorKatex   bool
-	HasVendorMermaid bool
+	Title           string
+	BrandName       string
+	Theme           string
+	TreeHTML        template.HTML
+	BreadcrumbHTML  template.HTML
+	ContentHTML     template.HTML
+	TOCHTML         template.HTML
+	InitialPathJSON template.JS
+	Reload          bool
 }
 
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -131,17 +129,15 @@ func (s *Server) renderShell(w http.ResponseWriter, r *http.Request, rel string)
 
 	jsonPath, _ := json.Marshal(rel)
 	data := pageData{
-		Title:            orDefault(doc.title, "gfm-hotview"),
-		BrandName:        filepath.Base(s.cfg.Root),
-		Theme:            string(s.cfg.Theme),
-		TreeHTML:         template.HTML(treeHTML),
-		BreadcrumbHTML:   template.HTML(doc.breadcrumb),
-		ContentHTML:      template.HTML(doc.html),
-		TOCHTML:          "",
-		InitialPathJSON:  template.JS(jsonPath),
-		Reload:           !s.cfg.NoReload,
-		HasVendorKatex:   s.vendorExists("vendor/katex.min.js"),
-		HasVendorMermaid: s.vendorExists("vendor/mermaid.min.js"),
+		Title:           orDefault(doc.title, "gfm-hotview"),
+		BrandName:       filepath.Base(s.cfg.Root),
+		Theme:           string(s.cfg.Theme),
+		TreeHTML:        template.HTML(treeHTML),
+		BreadcrumbHTML:  template.HTML(doc.breadcrumb),
+		ContentHTML:     template.HTML(doc.html),
+		TOCHTML:         "",
+		InitialPathJSON: template.JS(jsonPath),
+		Reload:          !s.cfg.NoReload,
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.tmpl.ExecuteTemplate(w, "page.html", data); err != nil {
@@ -462,15 +458,6 @@ func (s *Server) isExcluded(rel string) bool {
 		}
 	}
 	return false
-}
-
-func (s *Server) vendorExists(name string) bool {
-	f, err := s.assets.Open(name)
-	if err != nil {
-		return false
-	}
-	_ = f.Close()
-	return true
 }
 
 func findNode(n *tree.Node, rel string) *tree.Node {

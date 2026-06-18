@@ -235,7 +235,7 @@
 
   // ---- Content enhancement: mermaid + math ----
   function enhanceContent() {
-    if (cfg.vendor && cfg.vendor.mermaid && window.mermaid) {
+    if (window.mermaid) {
       try {
         var theme = root.getAttribute("data-theme");
         var dark = theme === "dark" || (theme === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
@@ -244,7 +244,7 @@
         if (blocks.length) window.mermaid.run({ nodes: blocks });
       } catch (e) { /* ignore */ }
     }
-    if (cfg.vendor && cfg.vendor.katex && window.renderMathInElement) {
+    if (window.renderMathInElement) {
       try {
         window.renderMathInElement(contentEl, {
           delimiters: [

@@ -15,8 +15,8 @@ See [`docs/spec.md`](docs/spec.md) for the full specification.
   - GitHub-style alerts (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`)
   - Heading anchors, emoji shortcodes (`:rocket:`)
   - Syntax highlighting via embedded Chroma (light/dark)
-  - Math (`$…$`, `$$…$$`) and Mermaid blocks rendered client-side when the
-    optional vendor bundles are present (see below); otherwise shown as source
+  - Math (`$…$`, `$$…$$`) and Mermaid blocks rendered client-side via bundled
+    KaTeX and Mermaid libraries
 - Multi-panel UI: file-tree sidebar with fuzzy filter, rendered pane, TOC with
   scroll-spy, light/dark/auto themes
 - Live reload over Server-Sent Events (file watching with debounce)
@@ -92,21 +92,6 @@ in `.gfm-hotview/css` are concatenated and served at `/user.css`, linked after t
 built-in stylesheets so they win by cascade. Both are ignored with
 `--no-config`. The `.gfm-hotview` directory is never shown in the tree or served
 as raw content.
-
-## Optional offline Math/Mermaid bundles
-
-To render Math and Mermaid in the browser fully offline, drop the minified
-bundles into `web/assets/vendor/` before building (they are then embedded):
-
-```
-web/assets/vendor/katex.min.css
-web/assets/vendor/katex.min.js
-web/assets/vendor/auto-render.min.js
-web/assets/vendor/mermaid.min.js
-```
-
-If absent, math is emitted as `\(…\)`/`\[…\]` text and Mermaid as a code block
-(`<pre class="mermaid">`); everything else still works.
 
 ## Development
 

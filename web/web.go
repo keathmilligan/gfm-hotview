@@ -9,7 +9,7 @@ import "embed"
 //go:embed templates/*.html
 var Templates embed.FS
 
-// Assets holds static assets (CSS/JS and optional vendor bundles).
+// Assets holds static assets (CSS/JS and vendor bundles).
 //
 //go:embed assets
 var Assets embed.FS

@@ -7,8 +7,8 @@
 <link rel="stylesheet" href="/assets/app.css">
 <link rel="stylesheet" href="/assets/markdown.css">
 <link rel="stylesheet" href="/assets/chroma.css">
-{{if .HasVendorKatex}}<link rel="stylesheet" href="/assets/vendor/katex.min.css">{{end}}
-<link rel="stylesheet" href="/user.css">
+	<link rel="stylesheet" href="/assets/vendor/katex.min.css">
+	<link rel="stylesheet" href="/user.css">
 </head>
 <body>
 <div id="app">
@@ -35,13 +35,12 @@
 <script>
   window.GFMVIEW = {
     initialPath: {{.InitialPathJSON}},
-    reload: {{.Reload}},
-    vendor: { katex: {{.HasVendorKatex}}, mermaid: {{.HasVendorMermaid}} }
+    reload: {{.Reload}}
   };
 </script>
-{{if .HasVendorKatex}}<script defer src="/assets/vendor/katex.min.js"></script>
-<script defer src="/assets/vendor/auto-render.min.js"></script>{{end}}
-{{if .HasVendorMermaid}}<script defer src="/assets/vendor/mermaid.min.js"></script>{{end}}
-<script defer src="/assets/app.js"></script>
+	<script defer src="/assets/vendor/katex.min.js"></script>
+	<script defer src="/assets/vendor/auto-render.min.js"></script>
+	<script defer src="/assets/vendor/mermaid.min.js"></script>
+	<script defer src="/assets/app.js"></script>
 </body>
 </html>
