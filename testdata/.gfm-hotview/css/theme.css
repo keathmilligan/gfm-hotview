@@ -1,2 +1,2 @@
 /* custom override */
-.brand::after { content: " (themed)"; }
+.brand::after {}
