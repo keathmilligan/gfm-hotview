@@ -1,28 +1,21 @@
 # gfm-hotview
 
-A small, dependency-free, **offline** GitHub-Flavored Markdown (GFM) viewer.
-Point it at a directory and it serves a GitHub-style multi-panel UI — a file
-tree on the left, the rendered document on the right — with live reload and
-optional browser auto-open. Ships as a single static binary for Windows,
-Linux, and macOS.
-
-See [`docs/spec.md`](docs/spec.md) for the full specification.
+A lightweight, yet feature-rich **offline** GitHub-Flavored Markdown (GFM) 
+file browser and viewer.
 
 ## Features
 
-- Faithful GFM rendering, fully offline (no network, no CDN).
+- Supports all Gtihub markdown features: 
   - Tables, task lists, footnotes, strikethrough, autolinks
   - GitHub-style alerts (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`)
   - Heading anchors, emoji shortcodes (`:rocket:`)
-  - Syntax highlighting via embedded Chroma (light/dark)
-  - Math (`$…$`, `$$…$$`) and Mermaid blocks rendered client-side via bundled
-    KaTeX and Mermaid libraries
-- Multi-panel UI: file-tree sidebar with fuzzy filter, rendered pane, TOC with
-  scroll-spy, light/dark/auto themes
-- Live reload over Server-Sent Events (file watching with debounce)
-- Auto-opens your default browser; auto-selects a free port
-- Path-contained: never serves files outside the served root
-- Single static binary, no runtime dependencies
+  - Code blocks with syntax highlighting
+  - Math (`$…$`, `$$…$$`) and Mermaid blocks
+- Markdown file explorer with search
+- Light and dark modes
+- Live reload
+- Automatic port selection
+- Dependency-free and easy to deploy
 
 ## Install / Build
 
