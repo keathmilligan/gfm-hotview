@@ -27,7 +27,7 @@ jobs:
     name: Refresh README Badges
     needs: ci
     if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
-    uses: keathmilligan/release-infra/.github/workflows/publish-badges.yml@v1
+    uses: keathmilligan/release-infra/.github/workflows/publish-badges.yml@master
     with:
       project-name: gfm-hotview
       packages-repo: keathmilligan/packages

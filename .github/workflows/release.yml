@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   release:
-    uses: keathmilligan/release-infra/.github/workflows/release.yml@v1
+    uses: keathmilligan/release-infra/.github/workflows/release.yml@master
     with:
       tag: ${{ inputs.tag }}
       force: ${{ inputs.force }}
@@ -26,7 +26,7 @@ jobs:
 
   publish:
     needs: release
-    uses: keathmilligan/release-infra/.github/workflows/publish.yml@v1
+    uses: keathmilligan/release-infra/.github/workflows/publish.yml@master
     with:
       ref: ${{ needs.release.outputs.release_sha }}
       project-name: gfm-hotview

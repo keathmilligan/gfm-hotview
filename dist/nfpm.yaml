@@ -1,0 +1,15 @@
+name: gfm-hotview
+arch: "${ARCH}"
+platform: "linux"
+version: "${VERSION}"
+version_schema: none
+section: utils
+priority: optional
+maintainer: "${MAINTAINER}"
+homepage: "https://github.com/keathmilligan/gfm-hotview"
+description: |
+  A lightweight, offline GitHub-Flavored Markdown file browser and viewer.
+license: MIT
+contents:
+  - src: "${BINARY}"
+    dst: /usr/bin/gfm-hotview
