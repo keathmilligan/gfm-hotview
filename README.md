@@ -29,20 +29,42 @@ file browser and viewer.
 - Automatic port selection
 - Dependency-free and easy to deploy
 
-## Install / Build
+## Install
 
-Requires Go 1.22+.
+Download the latest release for your platform from the [releases
+page](https://github.com/keathmilligan/gfm-hotview/releases/latest), or install
+via a package manager:
 
-```sh
-go build -o gfm-hotview .
-```
-
-Cross-compile (fully static, `CGO_ENABLED=0`):
+### macOS (Homebrew)
 
 ```sh
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o gfm-hotview.exe .
-CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -o gfm-hotview-macos .
+brew tap keathmilligan/tap
+brew install keathmilligan/tap/gfm-hotview
 ```
+
+Stay up-to-date with `brew upgrade gfm-hotview`.
+
+See the [macOS Install Guide](docs/install-macos.md) for other ways to install on macOS.
+
+### Linux (shell installer)
+
+```sh
+curl -fsSL https://packages.keathmilligan.net/gfm-hotview/install.sh | sh
+```
+
+This will install `gfm-hotview` into `~/.local/bin`.
+
+See the [Linux Install Guide](docs/install-linux.md) for other ways to install on Linux.
+
+### Windows (winget)
+
+In an elevated powershell session, run:
+
+```powershell
+winget install gfm-hotview
+```
+
+See the [Windows Install Guide](docs/install-windows.md) for other ways to install on Windows.
 
 ## Usage
 
@@ -97,6 +119,21 @@ in `.gfm-hotview/css` are concatenated and served at `/user.css`, linked after t
 built-in stylesheets so they win by cascade. Both are ignored with
 `--no-config`. The `.gfm-hotview` directory is never shown in the tree or served
 as raw content.
+
+## Build from source
+
+Requires Go 1.22+.
+
+```sh
+go build -o gfm-hotview .
+```
+
+Cross-compile (fully static, `CGO_ENABLED=0`):
+
+```sh
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o gfm-hotview.exe .
+CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -o gfm-hotview-macos .
+```
 
 ## Development
 
