@@ -1,17 +1,8 @@
 # Windows Installation Guide
 
-## winget
-
-Microsoft's `winget` is the recommended installation method for Windows:
-
-In an elevated powershell session, run:
-
-```powershell
-winget install gfm-hotview
-```
-
 ## PowerShell Installer
 
+The PowerShell installer is the recommended installation method for Windows.
 In an elevated powershell session, run:
 
 ```powershell

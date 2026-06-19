@@ -56,12 +56,12 @@ This will install `gfm-hotview` into `~/.local/bin`.
 
 See the [Linux Install Guide](docs/install-linux.md) for other ways to install on Linux.
 
-### Windows (winget)
+### Windows (PowerShell)
 
 In an elevated powershell session, run:
 
 ```powershell
-winget install gfm-hotview
+irm https://packages.keathmilligan.net/gfm-hotview/install.ps1 | iex
 ```
 
 See the [Windows Install Guide](docs/install-windows.md) for other ways to install on Windows.
