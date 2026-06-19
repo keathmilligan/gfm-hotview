@@ -244,6 +244,7 @@ type docResult struct {
 }
 
 var headingRe = regexp.MustCompile(`(?s)<h([1-6]) id="([^"]+)">`)
+var imgSrcRe = regexp.MustCompile(`<img([^>]*)\ssrc="([^"]*)"`)
 
 // renderDoc renders the markdown at rel, or a directory listing if rel is a
 // directory (after index detection), or a not-found marker.
@@ -295,6 +296,31 @@ func (s *Server) renderDoc(rel string) docResult {
 
 	// Tag task-list items so the GitHub-style CSS applies.
 	htmlOut = strings.ReplaceAll(htmlOut, `<li><input `, `<li class="task-list-item"><input `)
+
+	// Rewrite relative image src to /raw/ paths.
+	docDir := filepath.Dir(rel)
+	htmlOut = imgSrcRe.ReplaceAllStringFunc(htmlOut, func(m string) string {
+		match := imgSrcRe.FindStringSubmatch(m)
+		if match == nil {
+			return m
+		}
+		attrs := match[1]
+		src := match[2]
+		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") ||
+			strings.HasPrefix(src, "data:") || strings.HasPrefix(src, "#") ||
+			strings.HasPrefix(src, "/") {
+			return m
+		}
+		resolved, err := resolveSafe(s.cfg.Root, path.Join(docDir, src))
+		if err != nil {
+			return m
+		}
+		relPath, err := filepath.Rel(s.cfg.Root, resolved)
+		if err != nil {
+			return m
+		}
+		return fmt.Sprintf(`<img%s src="/raw/%s"`, attrs, pathEscape(filepath.ToSlash(relPath)))
+	})
 
 	title := res.Title
 	if title == "" {

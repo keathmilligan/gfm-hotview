@@ -47,6 +47,38 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+The decision flow for routing notifications across channels is shown below.
+
+```mermaid
+flowchart TD
+    A[Inbound Event] --> B{Priority?}
+    B -->|critical| C[Push + Email + SMS]
+    B -->|high| D[Push + Email]
+    B -->|normal| E[Email only]
+    B -->|low| F[Batch digest]
+
+    C --> G{User Online?}
+    G -->|yes| H[Deliver via WS]
+    G -->|no| I[Queue push for later]
+    H --> J([Done])
+    I --> J
+
+    D --> K[Send Email]
+    K --> L{Opened in 24h?}
+    L -->|no| M[Resend with new subject]
+    L -->|yes| J
+    M --> J
+
+    E --> N{In quiet hours?}
+    N -->|yes| O[Defer to 08:00]
+    N -->|no| K
+    O --> K
+
+    F --> P[Accumulate]
+    P --> Q[Deliver at 09:00 daily]
+    Q --> J
+```
+
 ## Gaps & Remediation
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.

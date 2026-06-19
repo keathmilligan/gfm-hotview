@@ -1,7 +1,9 @@
 # gfm-hotview
 
-A lightweight, yet feature-rich **offline** GitHub-Flavored Markdown (GFM) 
+A lightweight, yet feature-rich offline GitHub-Flavored Markdown (GFM) 
 file browser and viewer.
+
+![gfm-hotview](screenshot.png)
 
 ## Features
 

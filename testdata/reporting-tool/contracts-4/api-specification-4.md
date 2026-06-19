@@ -192,6 +192,38 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 }
 ```
 
+The sequence below illustrates an authenticated request that triggers a
+long-running export job and polls for completion.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant G as API Gateway
+    participant A as Auth Service
+    participant W as Worker Pool
+    participant S as Storage
+
+    C->>G: POST /api/v1/exports
+    G->>A: validate JWT
+    A-->>G: 200 (valid)
+    G->>W: enqueue export job
+    W-->>G: 202 { job_id }
+    G-->>C: 202 Accepted
+    loop Poll
+        C->>G: GET /api/v1/exports/{job_id}
+        G->>W: check status
+        alt pending
+            W-->>G: { status: "running" }
+            G-->>C: 200 { status: "running" }
+        else complete
+            W-->>G: { status: "done", url }
+            G-->>C: 303 Location: {url}
+            C->>S: download result
+            S-->>C: file/octet-stream
+        end
+    end
+```
+
 ## Error Codes
 
 | Code | Meaning | Retryable |

@@ -56,6 +56,29 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
+The lifecycle of a fraud-check job is modelled as the following state machine.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Received
+    Received --> Enriching : accept
+    Enriching --> Enriched : user profile + device fingerprint
+    Enriched --> Scoring : feature vector ready
+    Scoring --> Scored : ML model returned
+    Scored --> Review : score >= threshold
+    Scored --> Cleared : score < threshold
+    Review --> Escalated : analyst flags
+    Review --> Cleared : analyst approves
+    Escalated --> Blocked : confirmed fraud
+    Cleared --> [*]
+    Blocked --> [*]
+
+    note right of Scoring
+        Ensemble of 3 models:
+        XGBoost + CatBoost + LR
+    end note
+```
+
 ## Dependencies
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
