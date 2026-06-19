@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/keathmilligan/gfm-hotview/actions/workflows/ci.yml/badge.svg)](https://github.com/keathmilligan/gfm-hotview/actions/workflows/ci.yml)
 [![Release](https://github.com/keathmilligan/gfm-hotview/actions/workflows/release.yml/badge.svg)](https://github.com/keathmilligan/gfm-hotview/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [![macOS DMG](https://packages.keathmilligan.net/gfm-hotview/badges/macos-dmg.svg)](https://github.com/keathmilligan/gfm-hotview/releases/latest)
 [![Windows MSI](https://packages.keathmilligan.net/gfm-hotview/badges/msi.svg)](https://github.com/keathmilligan/gfm-hotview/releases/latest)
