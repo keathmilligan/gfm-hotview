@@ -1,5 +1,15 @@
 # gfm-hotview
 
+[![CI](https://github.com/keathmilligan/gfm-hotview/actions/workflows/ci.yml/badge.svg)](https://github.com/keathmilligan/gfm-hotview/actions/workflows/ci.yml)
+[![Release](https://github.com/keathmilligan/gfm-hotview/actions/workflows/release.yml/badge.svg)](https://github.com/keathmilligan/gfm-hotview/actions/workflows/release.yml)
+
+[![macOS DMG](https://packages.keathmilligan.net/gfm-hotview/badges/macos-dmg.svg)](https://github.com/keathmilligan/gfm-hotview/releases/latest)
+[![Windows MSI](https://packages.keathmilligan.net/gfm-hotview/badges/msi.svg)](https://github.com/keathmilligan/gfm-hotview/releases/latest)
+[![Homebrew](https://packages.keathmilligan.net/gfm-hotview/badges/homebrew.svg)](https://github.com/keathmilligan/gfm-hotview/releases/latest)
+[![apt](https://packages.keathmilligan.net/gfm-hotview/badges/apt.svg)](https://github.com/keathmilligan/gfm-hotview/releases/latest)
+[![rpm](https://packages.keathmilligan.net/gfm-hotview/badges/rpm.svg)](https://github.com/keathmilligan/gfm-hotview/releases/latest)
+[![Install Scripts](https://packages.keathmilligan.net/gfm-hotview/badges/install-scripts.svg)](https://github.com/keathmilligan/gfm-hotview/releases/latest)
+
 A lightweight, yet feature-rich offline GitHub-Flavored Markdown (GFM) 
 file browser and viewer.
 

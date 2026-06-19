@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to create (e.g. v0.1.0)
+        required: true
+        type: string
+      force:
+        description: Skip version increment validation (use for re-releases)
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: keathmilligan/release-infra/.github/workflows/release.yml@v1
+    with:
+      tag: ${{ inputs.tag }}
+      force: ${{ inputs.force }}
+      project-type: go
+
+  publish:
+    needs: release
+    uses: keathmilligan/release-infra/.github/workflows/publish.yml@v1
+    with:
+      ref: ${{ needs.release.outputs.release_sha }}
+      project-name: gfm-hotview
+      binary-name: gfm-hotview
+      project-type: go
+      go-main-package: .
+      targets: >-
+        x86_64-unknown-linux-gnu,
+        aarch64-unknown-linux-gnu,
+        x86_64-apple-darwin,
+        aarch64-apple-darwin,
+        x86_64-pc-windows-msvc
+      tap-repo: keathmilligan/homebrew-tap
+      packages-repo: keathmilligan/packages
+      enable-install-scripts: true
+      enable-homebrew: true
+      enable-apt: true
+      enable-rpm: true
+      enable-dmg: true
+      enable-msi: true
+      enable-badges: true
+    secrets: inherit

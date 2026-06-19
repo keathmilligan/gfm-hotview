@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./... -count=1
+      - name: Build
+        run: go build -o /dev/null .
+
+  publish-badges:
+    name: Refresh README Badges
+    needs: ci
+    if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
+    uses: keathmilligan/release-infra/.github/workflows/publish-badges.yml@v1
+    with:
+      project-name: gfm-hotview
+      packages-repo: keathmilligan/packages
+      enable-install-scripts: true
+      enable-homebrew: true
+      enable-apt: true
+      enable-rpm: true
+      enable-dmg: true
+      enable-msi: true
+    secrets: inherit
