@@ -1,0 +1,20 @@
+# Maintainer: ${MAINTAINER_NAME} <${MAINTAINER_EMAIL}>
+pkgname=gfm-hotview-bin
+pkgver=${VERSION}
+pkgrel=1
+pkgdesc='A lightweight, offline GitHub-Flavored Markdown file browser and viewer'
+arch=('x86_64' 'aarch64')
+url='https://github.com/keathmilligan/gfm-hotview'
+license=('MIT')
+provides=('gfm-hotview')
+conflicts=('gfm-hotview')
+
+source_x86_64=("https://github.com/keathmilligan/gfm-hotview/releases/download/v${pkgver}/gfm-hotview-${pkgver}-x86_64-unknown-linux-gnu.tar.gz")
+source_aarch64=("https://github.com/keathmilligan/gfm-hotview/releases/download/v${pkgver}/gfm-hotview-${pkgver}-aarch64-unknown-linux-gnu.tar.gz")
+
+sha256sums_x86_64=('SKIP')
+sha256sums_aarch64=('SKIP')
+
+package() {
+  install -Dm755 "gfm-hotview" "${pkgdir}/usr/bin/gfm-hotview"
+}
