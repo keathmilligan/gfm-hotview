@@ -28,6 +28,7 @@ jobs:
     needs: release
     uses: keathmilligan/release-infra/.github/workflows/publish.yml@master
     with:
+      tag: ${{ needs.release.outputs.tag }}
       ref: ${{ needs.release.outputs.release_sha }}
       project-name: gfm-hotview
       binary-name: gfm-hotview
