@@ -149,7 +149,7 @@ func run(args []string) error {
 		logger.SetOutput(devNull{})
 	}
 
-	srv, err := server.New(cfg, logger)
+	srv, err := server.New(cfg, logger, version)
 	if err != nil {
 		return err
 	}

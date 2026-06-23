@@ -33,10 +33,11 @@ type Server struct {
 	assets   fs.FS
 	hub      *sseHub
 	logger   *log.Logger
+	version  string
 }
 
 // New constructs a Server.
-func New(cfg *config.Config, logger *log.Logger) (*Server, error) {
+func New(cfg *config.Config, logger *log.Logger, version string) (*Server, error) {
 	tmpl, err := template.ParseFS(web.Templates, "templates/*.html")
 	if err != nil {
 		return nil, fmt.Errorf("parsing templates: %w", err)
@@ -52,6 +53,7 @@ func New(cfg *config.Config, logger *log.Logger) (*Server, error) {
 		assets:   assets,
 		hub:      newSSEHub(),
 		logger:   logger,
+		version:  version,
 	}, nil
 }
 
@@ -91,6 +93,7 @@ func (s *Server) logMiddleware(next http.Handler) http.Handler {
 type pageData struct {
 	Title           string
 	BrandName       string
+	Version         string
 	Theme           string
 	TreeHTML        template.HTML
 	BreadcrumbHTML  template.HTML
@@ -130,7 +133,8 @@ func (s *Server) renderShell(w http.ResponseWriter, r *http.Request, rel string)
 	jsonPath, _ := json.Marshal(rel)
 	data := pageData{
 		Title:           orDefault(doc.title, "gfm-hotview"),
-		BrandName:       filepath.Base(s.cfg.Root),
+		BrandName:       "gfm-hotview",
+		Version:         s.version,
 		Theme:           string(s.cfg.Theme),
 		TreeHTML:        template.HTML(treeHTML),
 		BreadcrumbHTML:  template.HTML(doc.breadcrumb),

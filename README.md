@@ -1,4 +1,8 @@
-# gfm-hotview
+ <picture>
+  <img src="web/assets/favicon.svg" alt="OpenCode logo" height="80">
+</picture>
+
+# gfm_hotview
 
 [![CI](https://github.com/keathmilligan/gfm-hotview/actions/workflows/ci.yml/badge.svg)](https://github.com/keathmilligan/gfm-hotview/actions/workflows/ci.yml)
 [![Release](https://github.com/keathmilligan/gfm-hotview/actions/workflows/release.yml/badge.svg)](https://github.com/keathmilligan/gfm-hotview/actions/workflows/release.yml)
