@@ -27,7 +27,7 @@ const exampleConfigTOML = `# gfm-hotview configuration
 # [server]
 # host = "localhost"
 # port = 6419
-# ignore = [".git", ".hg", ".svn", "node_modules", "vendor", "bower_components", "dist", "build", "target", "out", "__pycache__", ".venv", "venv", ".cache", "coverage", ".nyc_output", ".DS_Store", ".gfm-hotview"]
+# ignore = [".git", ".hg", ".svn", "node_modules", "vendor", "bower_components", "dist", "build", "target", "out", "__pycache__", ".venv*", "venv", ".pytest_cache", ".cargo", ".cache", "coverage", ".nyc_output", ".DS_Store", ".gfm-hotview"]
 `
 
 // Defaults.
@@ -48,7 +48,9 @@ var DefaultIgnore = []string{
 	// Build output
 	"dist", "build", "target", "out",
 	// Python
-	"__pycache__", ".venv", "venv",
+	"__pycache__", ".venv*", "venv", ".pytest_cache",
+	// Rust
+	".cargo",
 	// Cache
 	".cache",
 	// Coverage
@@ -87,7 +89,6 @@ type Config struct {
 	Theme    Theme
 	Mode     Mode
 	Show     []string
-	Hidden   bool
 	Ignore   []string
 	OpenPage string // relative path; empty => auto-detect README/index
 	Quiet    bool
@@ -119,7 +120,6 @@ type Flags struct {
 	Theme    *string
 	Mode     *string
 	Show     *string
-	Hidden   *bool
 	Ignore   *string
 	OpenPage *string
 	Quiet    *bool
@@ -291,9 +291,6 @@ func Resolve(roots []string, f Flags) (*Config, error) {
 	}
 	if f.Show != nil {
 		cfg.Show = splitCSV(*f.Show)
-	}
-	if f.Hidden != nil {
-		cfg.Hidden = *f.Hidden
 	}
 	if f.Ignore != nil {
 		cfg.Ignore = splitCSV(*f.Ignore)

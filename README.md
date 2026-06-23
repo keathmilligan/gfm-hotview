@@ -36,9 +36,8 @@ file browser and viewer.
 
 ## Install
 
-Download the latest release for your platform from the [releases
-page](https://github.com/keathmilligan/gfm-hotview/releases/latest), or install
-via a package manager:
+Use one of the installation methods below or download the latest release for your platform
+from the [releases page](https://github.com/keathmilligan/gfm-hotview/releases/latest).
 
 ### macOS (Homebrew)
 
@@ -94,7 +93,6 @@ basename, e.g. `proj/README.md`.
 | `-t, --theme` | `auto` | `auto` \| `light` \| `dark` |
 | `--mode` | `gfm` | `gfm` \| `markdown` (plain CommonMark) |
 | `--show` | `*.md,*.markdown` | Comma-separated globs shown in the tree |
-| `--hidden` | off | Include dotfiles/dot-directories |
 | `--ignore` | — | Additional comma-separated ignore globs |
 | `--open-page` | README-detect | Initial document (relative to root; for multiple roots, prefix with the root label) |
 | `-c, --config` | auto | Path to config file (default `.gfm-hotview/config.*`) |

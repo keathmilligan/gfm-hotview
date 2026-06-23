@@ -1,5 +1,5 @@
 // Package tree builds a filtered directory tree of the served root for the
-// sidebar, honoring show globs, default ignores, and the --hidden flag.
+// sidebar, honoring show globs and the ignore list.
 package tree
 
 import (
@@ -27,7 +27,6 @@ type Options struct {
 	Root   string
 	Show   []string // glob patterns matched against base filename
 	Ignore []string // names/patterns excluded entirely
-	Hidden bool     // include dotfiles/dot-directories
 	Logger *log.Logger
 }
 
@@ -156,9 +155,6 @@ func build(opts Options, absDir, relDir string) ([]*Node, error) {
 }
 
 func (o Options) ignored(name string) bool {
-	if !o.Hidden && strings.HasPrefix(name, ".") {
-		return true
-	}
 	for _, pat := range o.Ignore {
 		if name == pat {
 			return true

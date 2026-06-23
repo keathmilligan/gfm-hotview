@@ -50,7 +50,6 @@ func run(args []string) error {
 		theme    = fs.String("theme", string(config.ThemeAuto), "color theme: auto|light|dark")
 		mode     = fs.String("mode", string(config.ModeGFM), "markdown dialect: gfm|markdown")
 		show     = fs.String("show", "", "comma-separated globs of files shown in the tree")
-		hidden   = fs.Bool("hidden", false, "include dotfiles/dot-directories")
 		ignore   = fs.String("ignore", "", "additional comma-separated ignore globs")
 		openPage = fs.String("open-page", "", "document to render first (relative to root)")
 		cfgPath  = fs.String("config", "", "path to config file (default: .gfm-hotview/config.*)")
@@ -127,9 +126,6 @@ func run(args []string) error {
 	}
 	if isSet("show") {
 		fl.Show = show
-	}
-	if isSet("hidden") {
-		fl.Hidden = hidden
 	}
 	if isSet("ignore") {
 		fl.Ignore = ignore

@@ -51,7 +51,7 @@ func TestBuildFiltersAndSorts(t *testing.T) {
 	}
 }
 
-func TestBuildHidesDotfilesByDefault(t *testing.T) {
+func TestBuildShowsDotfilesByDefault(t *testing.T) {
 	root := t.TempDir()
 	_ = os.WriteFile(filepath.Join(root, ".secret.md"), []byte("x"), 0o644)
 	_ = os.WriteFile(filepath.Join(root, "visible.md"), []byte("x"), 0o644)
@@ -60,8 +60,8 @@ func TestBuildHidesDotfilesByDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(node.Children) != 1 || node.Children[0].Name != "visible.md" {
-		t.Fatalf("dotfile not hidden: %+v", node.Children)
+	if len(node.Children) != 2 {
+		t.Fatalf("want 2 children (dotfile + regular), got %+v", node.Children)
 	}
 }
 

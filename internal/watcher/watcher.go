@@ -106,10 +106,12 @@ func (w *Watcher) Run() {
 			if !ok {
 				return
 			}
+			if !w.classify(e) {
+				continue
+			}
 			if w.logger != nil {
 				w.logger.Printf("watch: %s %s", e.Op, e.Name)
 			}
-			w.classify(e)
 			if timer == nil {
 				timer = time.NewTimer(debounce)
 				timerC = timer.C
@@ -128,31 +130,61 @@ func (w *Watcher) Run() {
 	}
 }
 
-func (w *Watcher) classify(e fsnotify.Event) {
+// classify inspects a raw fs event and records pending change kinds. It returns
+// false for non-markdown, non-CSS file events that don't affect the tree, so
+// the caller can skip logging and debounce work.
+func (w *Watcher) classify(e fsnotify.Event) bool {
 	name := e.Name
+	lower := strings.ToLower(name)
 
-	// New directories must be watched; removed structure changes the tree.
-	if e.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
-		w.pending[KindTree] = true
-		if e.Op&fsnotify.Create != 0 {
-			if st, err := os.Stat(name); err == nil && st.IsDir() && !w.skip(name) {
-				_ = w.addRecursive(name)
-			}
-		}
-	}
-
-	if strings.HasSuffix(strings.ToLower(name), ".css") {
+	// CSS override files.
+	if strings.HasSuffix(lower, ".css") {
 		for _, cd := range w.cssDirs {
 			if strings.HasPrefix(name, cd) {
 				w.pending[KindCSS] = true
-				return
+				return true
 			}
 		}
 	}
 
+	// Directory operations always affect the tree.
+	if e.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
+		if e.Op&fsnotify.Create != 0 {
+			if st, err := os.Stat(name); err == nil && st.IsDir() {
+				w.pending[KindTree] = true
+				if !w.skip(name) {
+					_ = w.addRecursive(name)
+				}
+				return true
+			}
+		} else {
+			// Remove/Rename: the path is gone, so we can't stat it. If the
+			// basename has no file extension it may have been a directory,
+			// so refresh the tree to be safe.
+			if filepath.Ext(name) == "" {
+				w.pending[KindTree] = true
+				return true
+			}
+		}
+	}
+
+	// Skip non-markdown files entirely.
+	if !isMarkdown(lower) {
+		return false
+	}
+
+	if e.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
+		w.pending[KindTree] = true
+	}
 	if e.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename|fsnotify.Remove) != 0 {
 		w.pending[KindContent] = true
 	}
+	return true
+}
+
+// isMarkdown reports whether a lowercased path has a markdown extension.
+func isMarkdown(lower string) bool {
+	return strings.HasSuffix(lower, ".md") || strings.HasSuffix(lower, ".markdown")
 }
 
 func (w *Watcher) addRecursive(dir string) error {

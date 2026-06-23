@@ -135,6 +135,17 @@ func (r *statusRecorder) Write(b []byte) (int, error) {
 	return r.ResponseWriter.Write(b)
 }
 
+// Flush forwards to the wrapped ResponseWriter so streaming responses (SSE)
+// work through the recorder. Also marks the response as written with 200.
+func (r *statusRecorder) Flush() {
+	if !r.wrote {
+		r.wrote = true
+	}
+	if f, ok := r.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 // ---- Page shell ----
 
 type pageData struct {
@@ -504,7 +515,6 @@ func (s *Server) buildTree() (*tree.Node, error) {
 	opts := tree.Options{
 		Show:   s.cfg.Show,
 		Ignore: s.cfg.Ignore,
-		Hidden: s.cfg.Hidden,
 	}
 	if s.cfg.Debug {
 		opts.Logger = s.logger
@@ -644,9 +654,6 @@ func (s *Server) isExcluded(rel string) bool {
 		return false
 	}
 	for _, part := range strings.Split(rel, "/") {
-		if !s.cfg.Hidden && strings.HasPrefix(part, ".") {
-			return true
-		}
 		for _, ig := range s.cfg.Ignore {
 			if part == ig {
 				return true
