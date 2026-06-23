@@ -69,8 +69,8 @@ func TestNoConfigIgnoresFileAndCSS(t *testing.T) {
 	if cfg.Port != DefaultPort {
 		t.Fatalf("--no-config should use default port, got %d", cfg.Port)
 	}
-	if cfg.CSSDir != "" {
-		t.Fatalf("--no-config should ignore css dir, got %q", cfg.CSSDir)
+	if len(cfg.CSSDirs) != 0 {
+		t.Fatalf("--no-config should ignore css dir, got %v", cfg.CSSDirs)
 	}
 }
 

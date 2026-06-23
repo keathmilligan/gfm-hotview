@@ -3,3 +3,5 @@
 /gfm-hotview.exe
 *.test
 *.out
+.gfm-hotview/
+

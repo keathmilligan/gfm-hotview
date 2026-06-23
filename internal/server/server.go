@@ -216,24 +216,23 @@ func (s *Server) handleRaw(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUserCSS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/css; charset=utf-8")
-	if s.cfg.CSSDir == "" {
-		return
-	}
-	entries, err := os.ReadDir(s.cfg.CSSDir)
-	if err != nil {
-		return
-	}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".css") {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(s.cfg.CSSDir, e.Name()))
+	for _, dir := range s.cfg.CSSDirs {
+		entries, err := os.ReadDir(dir)
 		if err != nil {
 			continue
 		}
-		fmt.Fprintf(w, "/* %s */\n", e.Name())
-		_, _ = w.Write(data)
-		_, _ = w.Write([]byte("\n"))
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(strings.ToLower(e.Name()), ".css") {
+				continue
+			}
+			data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+			if err != nil {
+				continue
+			}
+			fmt.Fprintf(w, "/* %s */\n", e.Name())
+			_, _ = w.Write(data)
+			_, _ = w.Write([]byte("\n"))
+		}
 	}
 }
 

@@ -164,7 +164,7 @@ func run(args []string) error {
 	// Live reload watcher.
 	var w *watcher.Watcher
 	if !cfg.NoReload {
-		w, err = watcher.New(cfg.Root, cfg.CSSDir, cfg.Ignore)
+		w, err = watcher.New(cfg.Root, cfg.CSSDirs, cfg.Ignore)
 		if err != nil {
 			logger.Printf("warning: live reload disabled (%v)", err)
 		} else {

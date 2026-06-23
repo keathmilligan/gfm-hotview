@@ -1,6 +1,7 @@
 // Package config resolves effective settings from built-in defaults, an
-// optional .gfm-hotview config file, and command-line flags (in that precedence
-// order, later overriding earlier).
+// optional user-level config file (~/.config/gfm-hotview), an optional
+// per-project .gfm-hotview config file, and command-line flags (in that
+// precedence order, later overriding earlier).
 package config
 
 import (
@@ -16,6 +17,17 @@ import (
 
 // DirName is the per-project configuration/theming directory at the served root.
 const DirName = ".gfm-hotview"
+
+// AppName is the app-specific subdirectory under the user config directory
+// (e.g. ~/.config/gfm-hotview on Linux, %APPDATA%/gfm-hotview on Windows).
+const AppName = "gfm-hotview"
+
+const exampleConfigTOML = `# gfm-hotview configuration
+# Uncomment settings below to customize.
+# [server]
+# host = "localhost"
+# port = 6419
+`
 
 // Defaults.
 const (
@@ -62,8 +74,9 @@ type Config struct {
 	Quiet    bool
 	Verbose  bool
 
-	// CSSDir is the absolute path to .gfm-hotview/css if it exists, else "".
-	CSSDir string
+	// CSSDirs holds the absolute paths to user and project CSS override
+	// directories (in order: user first, project last for cascade precedence).
+	CSSDirs []string
 }
 
 // fileConfig is the on-disk schema. Only a forward-compatible subset is honored
@@ -109,30 +122,111 @@ func Default(root string) *Config {
 	}
 }
 
-// Resolve builds the effective configuration following the precedence in §3.5:
-// defaults -> config file -> flags. root must already be an absolute directory.
+// UserConfigDir returns the app-specific subdirectory inside the OS user config
+// directory, or "" if it cannot be determined or does not exist.
+func UserConfigDir() string {
+	base, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(base, AppName)
+}
+
+// ensureConfigDir creates dir (and css/ subdirectory) if they do not exist.
+// If no config file is present, an example config.toml is written with all
+// settings commented out.
+func ensureConfigDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	hasConfig := false
+	for _, name := range []string{"config.toml", "config.yaml", "config.yml", "config.json"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			hasConfig = true
+			break
+		}
+	}
+	if !hasConfig {
+		if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(exampleConfigTOML), 0o644); err != nil {
+			return err
+		}
+	}
+	cssDir := filepath.Join(dir, "css")
+	return os.MkdirAll(cssDir, 0o755)
+}
+
+// Resolve builds the effective configuration following the precedence:
+// defaults -> user config -> project config -> flags.
+// root must already be an absolute directory.
 func Resolve(root string, f Flags) (*Config, error) {
 	cfg := Default(root)
 
 	if !f.NoConfig {
-		fc, path, err := loadFile(root, f.ConfigPath)
-		if err != nil {
-			return nil, err
-		}
-		if fc != nil {
-			if fc.Server.Host != nil {
-				cfg.Host = *fc.Server.Host
-			}
-			if fc.Server.Port != nil {
-				cfg.Port = *fc.Server.Port
-			}
-		}
-		_ = path // discovery path is available for logging by the caller if needed
+		if f.ConfigPath == "" {
+			// 1. User-level config (~/.config/gfm-hotview).
+			if ud := UserConfigDir(); ud != "" {
+				if err := ensureConfigDir(ud); err != nil {
+					return nil, err
+				}
+				cfg.CSSDirs = append(cfg.CSSDirs, filepath.Join(ud, "css"))
 
-		// Discover CSS overrides directory.
-		cssDir := filepath.Join(root, DirName, "css")
-		if st, err := os.Stat(cssDir); err == nil && st.IsDir() {
-			cfg.CSSDir = cssDir
+				fc, path, err := loadFile(ud, "")
+				if err != nil {
+					return nil, err
+				}
+				if fc != nil {
+					if fc.Server.Host != nil {
+						cfg.Host = *fc.Server.Host
+					}
+					if fc.Server.Port != nil {
+						cfg.Port = *fc.Server.Port
+					}
+				}
+				_ = path
+			}
+
+			// 2. Project-level config (<root>/.gfm-hotview) overrides user.
+			projectDir := filepath.Join(root, DirName)
+			fc, path, err := loadFile(projectDir, "")
+			if err != nil {
+				return nil, err
+			}
+			if fc != nil {
+				if fc.Server.Host != nil {
+					cfg.Host = *fc.Server.Host
+				}
+				if fc.Server.Port != nil {
+					cfg.Port = *fc.Server.Port
+				}
+			}
+			_ = path
+
+			// Project CSS overrides directory (only if it exists).
+			cssDir := filepath.Join(root, DirName, "css")
+			if st, err := os.Stat(cssDir); err == nil && st.IsDir() {
+				cfg.CSSDirs = append(cfg.CSSDirs, cssDir)
+			}
+		} else {
+			// Explicit --config path overrides user + project auto-discovery.
+			fc, path, err := loadFile(root, f.ConfigPath)
+			if err != nil {
+				return nil, err
+			}
+			if fc != nil {
+				if fc.Server.Host != nil {
+					cfg.Host = *fc.Server.Host
+				}
+				if fc.Server.Port != nil {
+					cfg.Port = *fc.Server.Port
+				}
+			}
+			_ = path
+
+			// Still discover CSS overrides from project dir.
+			cssDir := filepath.Join(root, DirName, "css")
+			if st, err := os.Stat(cssDir); err == nil && st.IsDir() {
+				cfg.CSSDirs = append(cfg.CSSDirs, cssDir)
+			}
 		}
 	}
 
@@ -197,21 +291,21 @@ func (c *Config) validate() error {
 	return nil
 }
 
-// loadFile finds and parses the config file. It returns (nil, "", nil) when no
-// config file is present. An explicit path that does not exist is an error.
-func loadFile(root, explicit string) (*fileConfig, string, error) {
+// loadFile finds and parses a config file in dir. If explicit is set, it is
+// treated as an override path. Returns (nil, "", nil) when no config file is
+// present. An explicit path that does not exist is an error.
+func loadFile(dir, explicit string) (*fileConfig, string, error) {
 	var path string
 	if explicit != "" {
 		if filepath.IsAbs(explicit) {
 			path = explicit
 		} else {
-			path = filepath.Join(root, explicit)
+			path = filepath.Join(dir, explicit)
 		}
 		if _, err := os.Stat(path); err != nil {
 			return nil, "", fmt.Errorf("config file %q: %w", explicit, err)
 		}
 	} else {
-		dir := filepath.Join(root, DirName)
 		for _, name := range []string{"config.toml", "config.yaml", "config.yml", "config.json"} {
 			cand := filepath.Join(dir, name)
 			if _, err := os.Stat(cand); err == nil {

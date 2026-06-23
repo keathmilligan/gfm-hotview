@@ -34,7 +34,7 @@ func (e Event) Has(k Kind) bool { return e.Kinds[k] }
 // Watcher recursively watches a root directory.
 type Watcher struct {
 	root    string
-	cssDir  string
+	cssDirs []string
 	ignore  []string
 	fsw     *fsnotify.Watcher
 	Events  chan Event
@@ -42,16 +42,16 @@ type Watcher struct {
 	pending map[Kind]bool
 }
 
-// New creates a Watcher rooted at root. cssDir may be "" if no overrides dir.
-// ignore lists base names of directories to skip (e.g. .git, node_modules).
-func New(root, cssDir string, ignore []string) (*Watcher, error) {
+// New creates a Watcher rooted at root. cssDirs lists CSS override directories
+// (may be empty). ignore lists base names of directories to skip (e.g. .git, node_modules).
+func New(root string, cssDirs []string, ignore []string) (*Watcher, error) {
 	fsw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
 	w := &Watcher{
 		root:    root,
-		cssDir:  cssDir,
+		cssDirs: cssDirs,
 		ignore:  ignore,
 		fsw:     fsw,
 		Events:  make(chan Event, 8),
@@ -124,9 +124,13 @@ func (w *Watcher) classify(e fsnotify.Event) {
 		}
 	}
 
-	if w.cssDir != "" && strings.HasPrefix(name, w.cssDir) && strings.HasSuffix(strings.ToLower(name), ".css") {
-		w.pending[KindCSS] = true
-		return
+	if strings.HasSuffix(strings.ToLower(name), ".css") {
+		for _, cd := range w.cssDirs {
+			if strings.HasPrefix(name, cd) {
+				w.pending[KindCSS] = true
+				return
+			}
+		}
 	}
 
 	if e.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename|fsnotify.Remove) != 0 {
