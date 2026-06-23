@@ -436,10 +436,13 @@ func (s *Server) treeHTML() (string, error) {
 	}
 	var b strings.Builder
 	b.WriteString(`<ul class="tree-list">`)
+	b.WriteString(`<li class="tree-item" data-dir="true" data-name="` + html.EscapeString(node.Name) + `">`)
+	b.WriteString(`<span class="tree-label"><span class="tree-toggle">` + caretRight + `</span><span class="tree-icon">` + iconFolder + `</span>` + html.EscapeString(node.Name) + `</span>`)
+	b.WriteString(`<ul class="tree-list">`)
 	for _, c := range node.Children {
 		writeTreeNode(&b, c)
 	}
-	b.WriteString("</ul>")
+	b.WriteString("</ul></li></ul>")
 	return b.String(), nil
 }
 
