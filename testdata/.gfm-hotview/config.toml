@@ -1,4 +1,0 @@
-# Demo config for gfm-hotview. Uncomment to override the bind address/port.
-# [server]
-# host = "127.0.0.1"
-# port = 8123
