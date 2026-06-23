@@ -27,6 +27,7 @@ const exampleConfigTOML = `# gfm-hotview configuration
 # [server]
 # host = "localhost"
 # port = 6419
+# ignore = [".git", ".hg", ".svn", "node_modules", "vendor", "bower_components", "dist", "build", "target", "out", "__pycache__", ".venv", "venv", ".cache", "coverage", ".nyc_output", ".DS_Store", ".gfm-hotview"]
 `
 
 // Defaults.
@@ -38,8 +39,25 @@ const (
 // DefaultShow are the default glob patterns of files shown in the tree.
 var DefaultShow = []string{"*.md", "*.markdown"}
 
-// DefaultIgnore are always-excluded names/patterns.
-var DefaultIgnore = []string{".git", ".hg", ".svn", "node_modules", ".DS_Store", DirName}
+// DefaultIgnore are always-excluded directory names/patterns.
+var DefaultIgnore = []string{
+	// Version control
+	".git", ".hg", ".svn",
+	// Package managers
+	"node_modules", "vendor", "bower_components",
+	// Build output
+	"dist", "build", "target", "out",
+	// Python
+	"__pycache__", ".venv", "venv",
+	// Cache
+	".cache",
+	// Coverage
+	"coverage", ".nyc_output",
+	// OS
+	".DS_Store",
+	// Self
+	DirName,
+}
 
 // Theme controls color theme behavior.
 type Theme string
@@ -86,6 +104,7 @@ type fileConfig struct {
 		Host *string `toml:"host" yaml:"host" json:"host"`
 		Port *int    `toml:"port" yaml:"port" json:"port"`
 	} `toml:"server" yaml:"server" json:"server"`
+	Ignore *[]string `toml:"ignore" yaml:"ignore" json:"ignore"`
 }
 
 // Flags carries values parsed from the command line. A nil pointer means the
@@ -181,6 +200,9 @@ func Resolve(root string, f Flags) (*Config, error) {
 					if fc.Server.Port != nil {
 						cfg.Port = *fc.Server.Port
 					}
+					if fc.Ignore != nil {
+						cfg.Ignore = *fc.Ignore
+					}
 				}
 				_ = path
 			}
@@ -197,6 +219,9 @@ func Resolve(root string, f Flags) (*Config, error) {
 				}
 				if fc.Server.Port != nil {
 					cfg.Port = *fc.Server.Port
+				}
+				if fc.Ignore != nil {
+					cfg.Ignore = *fc.Ignore
 				}
 			}
 			_ = path
@@ -218,6 +243,9 @@ func Resolve(root string, f Flags) (*Config, error) {
 				}
 				if fc.Server.Port != nil {
 					cfg.Port = *fc.Server.Port
+				}
+				if fc.Ignore != nil {
+					cfg.Ignore = *fc.Ignore
 				}
 			}
 			_ = path
@@ -256,7 +284,7 @@ func Resolve(root string, f Flags) (*Config, error) {
 		cfg.Hidden = *f.Hidden
 	}
 	if f.Ignore != nil {
-		cfg.Ignore = append(append([]string(nil), DefaultIgnore...), splitCSV(*f.Ignore)...)
+		cfg.Ignore = splitCSV(*f.Ignore)
 	}
 	if f.OpenPage != nil {
 		cfg.OpenPage = *f.OpenPage
