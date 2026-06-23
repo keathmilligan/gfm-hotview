@@ -78,7 +78,8 @@ const (
 
 // Config holds the fully-resolved effective settings.
 type Config struct {
-	Root     string // absolute path to the served directory
+	Root     string   // absolute path to the primary served directory (Roots[0])
+	Roots    []string // absolute paths to all served root directories
 	Host     string
 	Port     int
 	NoOpen   bool
@@ -91,6 +92,7 @@ type Config struct {
 	OpenPage string // relative path; empty => auto-detect README/index
 	Quiet    bool
 	Verbose  bool
+	Debug    bool
 
 	// CSSDirs holds the absolute paths to user and project CSS override
 	// directories (in order: user first, project last for cascade precedence).
@@ -122,6 +124,7 @@ type Flags struct {
 	OpenPage *string
 	Quiet    *bool
 	Verbose  *bool
+	Debug    *bool
 
 	ConfigPath string // explicit --config path ("" => auto-detect)
 	NoConfig   bool   // --no-config: ignore config file and .gfm-hotview overrides
@@ -131,6 +134,7 @@ type Flags struct {
 func Default(root string) *Config {
 	return &Config{
 		Root:     root,
+		Roots:    []string{root},
 		Host:     DefaultHost,
 		Port:     DefaultPort,
 		Theme:    ThemeAuto,
@@ -176,9 +180,16 @@ func ensureConfigDir(dir string) error {
 
 // Resolve builds the effective configuration following the precedence:
 // defaults -> user config -> project config -> flags.
-// root must already be an absolute directory.
-func Resolve(root string, f Flags) (*Config, error) {
-	cfg := Default(root)
+// roots must contain at least one absolute directory; roots[0] is the primary
+// root used for project config-file discovery. CSS overrides are discovered
+// from all roots.
+func Resolve(roots []string, f Flags) (*Config, error) {
+	if len(roots) == 0 {
+		return nil, fmt.Errorf("no root directories specified")
+	}
+	primary := roots[0]
+	cfg := Default(primary)
+	cfg.Roots = append([]string(nil), roots...)
 
 	if !f.NoConfig {
 		if f.ConfigPath == "" {
@@ -189,7 +200,7 @@ func Resolve(root string, f Flags) (*Config, error) {
 				}
 				cfg.CSSDirs = append(cfg.CSSDirs, filepath.Join(ud, "css"))
 
-				fc, path, err := loadFile(ud, "")
+				fc, _, err := loadFile(ud, "")
 				if err != nil {
 					return nil, err
 				}
@@ -204,12 +215,11 @@ func Resolve(root string, f Flags) (*Config, error) {
 						cfg.Ignore = *fc.Ignore
 					}
 				}
-				_ = path
 			}
 
-			// 2. Project-level config (<root>/.gfm-hotview) overrides user.
-			projectDir := filepath.Join(root, DirName)
-			fc, path, err := loadFile(projectDir, "")
+			// 2. Project-level config (<primary>/.gfm-hotview) overrides user.
+			projectDir := filepath.Join(primary, DirName)
+			fc, _, err := loadFile(projectDir, "")
 			if err != nil {
 				return nil, err
 			}
@@ -224,16 +234,17 @@ func Resolve(root string, f Flags) (*Config, error) {
 					cfg.Ignore = *fc.Ignore
 				}
 			}
-			_ = path
 
-			// Project CSS overrides directory (only if it exists).
-			cssDir := filepath.Join(root, DirName, "css")
-			if st, err := os.Stat(cssDir); err == nil && st.IsDir() {
-				cfg.CSSDirs = append(cfg.CSSDirs, cssDir)
+			// Project CSS overrides from all roots.
+			for _, r := range roots {
+				cssDir := filepath.Join(r, DirName, "css")
+				if st, err := os.Stat(cssDir); err == nil && st.IsDir() {
+					cfg.CSSDirs = append(cfg.CSSDirs, cssDir)
+				}
 			}
 		} else {
 			// Explicit --config path overrides user + project auto-discovery.
-			fc, path, err := loadFile(root, f.ConfigPath)
+			fc, _, err := loadFile(primary, f.ConfigPath)
 			if err != nil {
 				return nil, err
 			}
@@ -248,12 +259,13 @@ func Resolve(root string, f Flags) (*Config, error) {
 					cfg.Ignore = *fc.Ignore
 				}
 			}
-			_ = path
 
-			// Still discover CSS overrides from project dir.
-			cssDir := filepath.Join(root, DirName, "css")
-			if st, err := os.Stat(cssDir); err == nil && st.IsDir() {
-				cfg.CSSDirs = append(cfg.CSSDirs, cssDir)
+			// Still discover CSS overrides from all roots.
+			for _, r := range roots {
+				cssDir := filepath.Join(r, DirName, "css")
+				if st, err := os.Stat(cssDir); err == nil && st.IsDir() {
+					cfg.CSSDirs = append(cfg.CSSDirs, cssDir)
+				}
 			}
 		}
 	}
@@ -294,6 +306,9 @@ func Resolve(root string, f Flags) (*Config, error) {
 	}
 	if f.Verbose != nil {
 		cfg.Verbose = *f.Verbose
+	}
+	if f.Debug != nil {
+		cfg.Debug = *f.Debug
 	}
 
 	if err := cfg.validate(); err != nil {

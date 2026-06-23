@@ -171,6 +171,9 @@ html, body {
 }
 .tree-item.hidden-by-filter { display: none; }
 
+/* Absolute path shown next to a root entry: small, deemphasized. */
+.tree-root-path { font-size: 0.8em; color: var(--gv-muted); font-weight: 400; margin-left: 6px; }
+
 /* Folders: light blue, bold label and icon */
 .tree-item[data-dir="true"] > .tree-label { color: var(--gv-folder); font-weight: 600; }
 .tree-item[data-dir="true"] > .tree-label .tree-icon { color: var(--gv-folder); }

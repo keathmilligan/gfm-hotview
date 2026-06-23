@@ -74,11 +74,14 @@ See the [Windows Install Guide](docs/install-windows.md) for other ways to insta
 ## Usage
 
 ```sh
-gfm-hotview [options] [path]
+gfm-hotview [options] [path...]
 ```
 
-`path` defaults to the current directory. If you pass a file, its directory
-becomes the root and the file opens first.
+One or more `path` arguments may be given (default: the current directory).
+Each directory becomes a root shown in the sidebar tree; pass a file and its
+directory becomes a root with that file opened first. When multiple roots are
+given, paths in the tree (and `--open-page`) are prefixed with each root's
+basename, e.g. `proj/README.md`.
 
 ### Options
 
@@ -93,11 +96,12 @@ becomes the root and the file opens first.
 | `--show` | `*.md,*.markdown` | Comma-separated globs shown in the tree |
 | `--hidden` | off | Include dotfiles/dot-directories |
 | `--ignore` | — | Additional comma-separated ignore globs |
-| `--open-page` | README-detect | Initial document (relative to root) |
+| `--open-page` | README-detect | Initial document (relative to root; for multiple roots, prefix with the root label) |
 | `-c, --config` | auto | Path to config file (default `.gfm-hotview/config.*`) |
 | `--no-config` | off | Ignore config file and `.gfm-hotview` overrides |
 | `-q, --quiet` | off | Suppress non-error logs |
 | `-v, --verbose` | off | Verbose logging |
+| `-d, --debug` | off | Detailed server activity (file scanning, change events, requests) |
 | `--version` | | Print version |
 
 ## Configuration & theming (`.gfm-hotview`)

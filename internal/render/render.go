@@ -109,7 +109,7 @@ func extractHeadings(doc ast.Node, src []byte) ([]Heading, string) {
 		if !ok {
 			return ast.WalkContinue, nil
 		}
-		txt := string(h.Text(src))
+		txt := nodeText(h, src)
 		id := ""
 		if v, ok := h.AttributeString("id"); ok {
 			switch s := v.(type) {
@@ -130,6 +130,26 @@ func extractHeadings(doc ast.Node, src []byte) ([]Heading, string) {
 		title = headings[0].Text
 	}
 	return headings, title
+}
+
+// nodeText collects the visible text content of a node by walking its
+// descendants and concatenating *ast.Text values (with soft line breaks as
+// newlines). Replaces the deprecated ast.BaseNode.Text.
+func nodeText(n ast.Node, src []byte) string {
+	var b strings.Builder
+	_ = ast.Walk(n, func(nn ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		if t, ok := nn.(*ast.Text); ok {
+			b.Write(t.Value(src))
+			if t.SoftLineBreak() {
+				b.WriteByte('\n')
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+	return b.String()
 }
 
 // stripFrontmatter removes a leading YAML (---) or TOML (+++) frontmatter block.

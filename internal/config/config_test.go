@@ -8,7 +8,7 @@ import (
 
 func TestResolveDefaults(t *testing.T) {
 	root := t.TempDir()
-	cfg, err := Resolve(root, Flags{})
+	cfg, err := Resolve([]string{root}, Flags{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func TestResolveConfigFileTOML(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg, err := Resolve(root, Flags{})
+	cfg, err := Resolve([]string{root}, Flags{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestFlagsOverrideConfig(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(dir, "config.toml"), []byte("[server]\nport = 8123\n"), 0o644)
 
 	port := 9099
-	cfg, err := Resolve(root, Flags{Port: &port})
+	cfg, err := Resolve([]string{root}, Flags{Port: &port})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestNoConfigIgnoresFileAndCSS(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(dir, "css"), 0o755)
 	_ = os.WriteFile(filepath.Join(dir, "config.toml"), []byte("[server]\nport = 8123\n"), 0o644)
 
-	cfg, err := Resolve(root, Flags{NoConfig: true})
+	cfg, err := Resolve([]string{root}, Flags{NoConfig: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestInvalidConfigIsError(t *testing.T) {
 	_ = os.MkdirAll(dir, 0o755)
 	_ = os.WriteFile(filepath.Join(dir, "config.toml"), []byte("[server\nport = bad"), 0o644)
 
-	if _, err := Resolve(root, Flags{}); err == nil {
+	if _, err := Resolve([]string{root}, Flags{}); err == nil {
 		t.Fatal("expected error for invalid config")
 	}
 }
@@ -88,7 +88,7 @@ func TestInvalidConfigIsError(t *testing.T) {
 func TestInvalidThemeRejected(t *testing.T) {
 	root := t.TempDir()
 	bad := "purple"
-	if _, err := Resolve(root, Flags{Theme: &bad}); err == nil {
+	if _, err := Resolve([]string{root}, Flags{Theme: &bad}); err == nil {
 		t.Fatal("expected error for invalid theme")
 	}
 }

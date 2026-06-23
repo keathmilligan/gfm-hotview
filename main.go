@@ -14,12 +14,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/local/gfm-hotview/internal/browser"
 	"github.com/local/gfm-hotview/internal/config"
 	"github.com/local/gfm-hotview/internal/server"
+	"github.com/local/gfm-hotview/internal/tree"
 	"github.com/local/gfm-hotview/internal/watcher"
 )
 
@@ -36,7 +38,7 @@ func main() {
 func run(args []string) error {
 	fs := flag.NewFlagSet("gfm-hotview", flag.ContinueOnError)
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: gfm-hotview [options] [path]\n\nOptions:\n")
+		fmt.Fprintf(os.Stderr, "Usage: gfm-hotview [options] [path...]\n\nOptions:\n")
 		fs.PrintDefaults()
 	}
 
@@ -55,6 +57,7 @@ func run(args []string) error {
 		noConfig = fs.Bool("no-config", false, "ignore config file and .gfm-hotview overrides")
 		quiet    = fs.Bool("quiet", false, "suppress non-error log output")
 		verbose  = fs.Bool("verbose", false, "verbose request/watch logging")
+		debug    = fs.Bool("debug", false, "detailed server activity logging (scanning, change events, requests)")
 		showVer  = fs.Bool("version", false, "print version and exit")
 	)
 	// Short aliases.
@@ -64,8 +67,14 @@ func run(args []string) error {
 	fs.StringVar(cfgPath, "c", "", "alias for --config")
 	fs.BoolVar(quiet, "q", false, "alias for --quiet")
 	fs.BoolVar(verbose, "v", false, "alias for --verbose")
+	fs.BoolVar(debug, "d", false, "alias for --debug")
 
-	if err := fs.Parse(args); err != nil {
+	// Allow flags and positional paths to appear in any order, and drop a "--"
+	// separator (e.g. forwarded by `go run`) so `gfm-hotview -- -d path` and
+	// `gfm-hotview path -d` both work. Go's flag package otherwise stops at the
+	// first non-flag or at "--".
+	flagArgs, posArgs := partitionArgs(fs, args)
+	if err := fs.Parse(flagArgs); err != nil {
 		return err
 	}
 	if *showVer {
@@ -73,12 +82,12 @@ func run(args []string) error {
 		return nil
 	}
 
-	// Determine root and optional initial file.
-	target := "."
-	if fs.NArg() > 0 {
-		target = fs.Arg(0)
+	// Determine roots and optional initial file from one or more path args.
+	targets := posArgs
+	if len(targets) == 0 {
+		targets = []string{"."}
 	}
-	root, initialFile, err := resolveTarget(target)
+	roots, initialFile, err := resolveTargets(targets)
 	if err != nil {
 		return err
 	}
@@ -131,6 +140,9 @@ func run(args []string) error {
 	if isSet("verbose", "v") {
 		fl.Verbose = verbose
 	}
+	if isSet("debug", "d") {
+		fl.Debug = debug
+	}
 	// open-page: explicit flag wins, else the initial file (if a file was given).
 	switch {
 	case isSet("open-page"):
@@ -139,13 +151,13 @@ func run(args []string) error {
 		fl.OpenPage = &initialFile
 	}
 
-	cfg, err := config.Resolve(root, fl)
+	cfg, err := config.Resolve(roots, fl)
 	if err != nil {
 		return err
 	}
 
 	logger := log.New(os.Stderr, "", 0)
-	if cfg.Quiet {
+	if cfg.Quiet && !cfg.Debug {
 		logger.SetOutput(devNull{})
 	}
 
@@ -164,21 +176,32 @@ func run(args []string) error {
 	// Live reload watcher.
 	var w *watcher.Watcher
 	if !cfg.NoReload {
-		w, err = watcher.New(cfg.Root, cfg.CSSDirs, cfg.Ignore)
+		var wlog *log.Logger
+		if cfg.Debug {
+			wlog = logger
+		}
+		w, err = watcher.New(cfg.Roots, cfg.CSSDirs, cfg.Ignore, wlog)
 		if err != nil {
 			logger.Printf("warning: live reload disabled (%v)", err)
 		} else {
 			go w.Run()
 			go func() {
 				for ev := range w.Events {
-					if ev.Has(watcher.KindCSS) {
-						srv.NotifyCSS()
+					var kinds []string
+					if ev.Has(watcher.KindContent) {
+						kinds = append(kinds, "content")
+						srv.NotifyContent()
 					}
 					if ev.Has(watcher.KindTree) {
+						kinds = append(kinds, "tree")
 						srv.NotifyTree()
 					}
-					if ev.Has(watcher.KindContent) {
-						srv.NotifyContent()
+					if ev.Has(watcher.KindCSS) {
+						kinds = append(kinds, "css")
+						srv.NotifyCSS()
+					}
+					if cfg.Debug {
+						logger.Printf("reload: %s", strings.Join(kinds, ","))
 					}
 				}
 			}()
@@ -187,7 +210,7 @@ func run(args []string) error {
 
 	httpSrv := &http.Server{Handler: srv.Handler()}
 
-	logger.Printf("gfm-hotview serving %s", cfg.Root)
+	logger.Printf("gfm-hotview serving %s", strings.Join(cfg.Roots, ", "))
 	logger.Printf("listening on %s", url)
 
 	// Auto-open browser.
@@ -226,26 +249,102 @@ func run(args []string) error {
 	}
 }
 
-// resolveTarget returns the absolute root directory and, if target is a file,
-// the file's path relative to that root.
-func resolveTarget(target string) (root, initialFile string, err error) {
-	abs, err := filepath.Abs(target)
-	if err != nil {
-		return "", "", err
+// partitionArgs splits a raw argument list into flag arguments and positional
+// arguments, allowing them to be interspersed. A standalone "--" is dropped (it
+// is commonly forwarded by `go run` and otherwise terminates flag parsing).
+// Non-boolean flags consume the following argument as their value unless it
+// begins with "-" or is "--".
+func partitionArgs(fs *flag.FlagSet, args []string) (flagArgs, posArgs []string) {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--" {
+			continue
+		}
+		if len(a) > 1 && a[0] == '-' {
+			flagArgs = append(flagArgs, a)
+			name := strings.TrimLeft(a, "-")
+			if !strings.Contains(name, "=") && !isBoolFlag(fs, name) {
+				if i+1 < len(args) && args[i+1] != "--" && (len(args[i+1]) <= 1 || args[i+1][0] != '-') {
+					flagArgs = append(flagArgs, args[i+1])
+					i++
+				}
+			}
+			continue
+		}
+		posArgs = append(posArgs, a)
 	}
-	st, err := os.Stat(abs)
-	if err != nil {
-		return "", "", fmt.Errorf("%q: %w", target, err)
+	return flagArgs, posArgs
+}
+
+// isBoolFlag reports whether the named flag is a boolean flag (which does not
+// consume a following argument).
+func isBoolFlag(fs *flag.FlagSet, name string) bool {
+	f := fs.Lookup(name)
+	if f == nil {
+		return false
 	}
-	if st.IsDir() {
-		return abs, "", nil
+	if b, ok := f.Value.(interface{ IsBoolFlag() bool }); ok {
+		return b.IsBoolFlag()
 	}
-	dir := filepath.Dir(abs)
-	rel, err := filepath.Rel(dir, abs)
-	if err != nil {
-		return "", "", err
+	return false
+}
+
+// resolveTargets resolves one or more command-line targets into absolute root
+// directories. A file target contributes its parent directory as a root and is
+// recorded (the first such file) as the initial document, namespaced for
+// multi-root. Duplicate roots are collapsed.
+func resolveTargets(targets []string) (roots []string, initialFile string, err error) {
+	seen := make(map[string]bool)
+	var fileTarget string
+	for _, t := range targets {
+		abs, err := filepath.Abs(t)
+		if err != nil {
+			return nil, "", err
+		}
+		st, err := os.Stat(abs)
+		if err != nil {
+			return nil, "", fmt.Errorf("%q: %w", t, err)
+		}
+		var dir string
+		if st.IsDir() {
+			dir = abs
+		} else {
+			dir = filepath.Dir(abs)
+			if fileTarget == "" {
+				fileTarget = abs
+			}
+		}
+		dirClean := filepath.Clean(dir)
+		if seen[dirClean] {
+			continue
+		}
+		seen[dirClean] = true
+		roots = append(roots, dirClean)
 	}
-	return dir, filepath.ToSlash(rel), nil
+	if fileTarget != "" {
+		fileClean := filepath.Clean(fileTarget)
+		for _, m := range tree.MakeMounts(roots) {
+			mAbs := filepath.Clean(m.Abs)
+			if fileClean == mAbs {
+				initialFile = m.Label
+				break
+			}
+			if strings.HasPrefix(fileClean, mAbs+string(filepath.Separator)) {
+				rel, rerr := filepath.Rel(mAbs, fileClean)
+				if rerr != nil {
+					continue
+				}
+				rel = filepath.ToSlash(rel)
+				if m.Label == "" {
+					initialFile = rel
+				} else {
+					initialFile = m.Label + "/" + rel
+				}
+				break
+			}
+		}
+	}
+	return roots, initialFile, nil
 }
 
 // listen binds host:port, auto-selecting the next free port if the requested

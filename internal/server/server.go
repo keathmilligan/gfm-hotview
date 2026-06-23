@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/local/gfm-hotview/internal/config"
 	"github.com/local/gfm-hotview/internal/render"
@@ -28,6 +29,7 @@ import (
 // Server is the HTTP application.
 type Server struct {
 	cfg      *config.Config
+	mounts   []tree.Mount
 	renderer *render.Renderer
 	tmpl     *template.Template
 	assets   fs.FS
@@ -48,6 +50,7 @@ func New(cfg *config.Config, logger *log.Logger, version string) (*Server, error
 	}
 	return &Server{
 		cfg:      cfg,
+		mounts:   tree.MakeMounts(cfg.Roots),
 		renderer: render.New(cfg.Mode == config.ModeGFM),
 		tmpl:     tmpl,
 		assets:   assets,
@@ -75,17 +78,61 @@ func (s *Server) Handler() http.Handler {
 }
 
 // NotifyContent / NotifyTree / NotifyCSS push live-reload events.
-func (s *Server) NotifyContent() { s.hub.broadcast("content", "1") }
-func (s *Server) NotifyTree()    { s.hub.broadcast("tree", "1") }
-func (s *Server) NotifyCSS()     { s.hub.broadcast("css", "1") }
+func (s *Server) NotifyContent() {
+	if s.cfg.Debug {
+		s.logger.Printf("sse: broadcast content")
+	}
+	s.hub.broadcast("content", "1")
+}
+func (s *Server) NotifyTree() {
+	if s.cfg.Debug {
+		s.logger.Printf("sse: broadcast tree")
+	}
+	s.hub.broadcast("tree", "1")
+}
+func (s *Server) NotifyCSS() {
+	if s.cfg.Debug {
+		s.logger.Printf("sse: broadcast css")
+	}
+	s.hub.broadcast("css", "1")
+}
 
 func (s *Server) logMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		if s.cfg.Debug {
+			rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+			next.ServeHTTP(rec, r)
+			s.logger.Printf("req: %s %s -> %d (%dms)", r.Method, r.URL.Path, rec.status, time.Since(start).Milliseconds())
+			return
+		}
 		if s.cfg.Verbose {
 			s.logger.Printf("%s %s", r.Method, r.URL.Path)
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// statusRecorder wraps http.ResponseWriter to capture the response status code.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+	wrote  bool
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	if !r.wrote {
+		r.status = code
+		r.wrote = true
+	}
+	r.ResponseWriter.WriteHeader(code)
+}
+
+func (r *statusRecorder) Write(b []byte) (int, error) {
+	if !r.wrote {
+		r.wrote = true
+	}
+	return r.ResponseWriter.Write(b)
 }
 
 // ---- Page shell ----
@@ -110,7 +157,9 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	}
 	rel := s.cfg.OpenPage
 	if rel == "" {
-		rel = s.detectIndex("")
+		if len(s.mounts) <= 1 {
+			rel = s.detectIndex("")
+		} // multi-root: leave "" to render the roots listing
 	}
 	s.renderShell(w, r, rel)
 }
@@ -194,12 +243,17 @@ func (s *Server) handleAPIRender(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleRaw(w http.ResponseWriter, r *http.Request) {
 	rel := decodePath(strings.TrimPrefix(r.URL.Path, "/raw/"))
-	abs, err := resolveSafe(s.cfg.Root, rel)
+	m, rest, ok := s.mountForRel(rel)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	abs, err := resolveSafe(m.Abs, rest)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
-	if s.isExcluded(rel) {
+	if s.isExcluded(rest) {
 		http.NotFound(w, r)
 		return
 	}
@@ -229,7 +283,7 @@ func (s *Server) handleUserCSS(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				continue
 			}
-			fmt.Fprintf(w, "/* %s */\n", e.Name())
+			_, _ = fmt.Fprintf(w, "/* %s */\n", e.Name())
 			_, _ = w.Write(data)
 			_, _ = w.Write([]byte("\n"))
 		}
@@ -252,17 +306,28 @@ var imgSrcRe = regexp.MustCompile(`<img([^>]*)\ssrc="([^"]*)"`)
 // renderDoc renders the markdown at rel, or a directory listing if rel is a
 // directory (after index detection), or a not-found marker.
 func (s *Server) renderDoc(rel string) docResult {
+	if s.cfg.Debug {
+		s.logger.Printf("render: %q", rel)
+	}
 	if rel == "" {
 		// landing with no detectable index: show root listing
+		title := filepath.Base(s.cfg.Root)
+		if len(s.mounts) > 1 {
+			title = "roots"
+		}
 		return docResult{
 			html:       s.dirListingHTML(""),
-			title:      filepath.Base(s.cfg.Root),
+			title:      title,
 			breadcrumb: s.breadcrumbHTML(""),
 		}
 	}
 
-	abs, err := resolveSafe(s.cfg.Root, rel)
-	if err != nil || s.isExcluded(rel) {
+	m, rest, ok := s.mountForRel(rel)
+	if !ok {
+		return docResult{notFound: true}
+	}
+	abs, err := resolveSafe(m.Abs, rest)
+	if err != nil || s.isExcluded(rest) {
 		return docResult{notFound: true}
 	}
 	st, err := os.Stat(abs)
@@ -301,7 +366,7 @@ func (s *Server) renderDoc(rel string) docResult {
 	htmlOut = strings.ReplaceAll(htmlOut, `<li><input `, `<li class="task-list-item"><input `)
 
 	// Rewrite relative image src to /raw/ paths.
-	docDir := filepath.Dir(rel)
+	docDir := path.Dir(rel)
 	htmlOut = imgSrcRe.ReplaceAllStringFunc(htmlOut, func(m string) string {
 		match := imgSrcRe.FindStringSubmatch(m)
 		if match == nil {
@@ -314,15 +379,15 @@ func (s *Server) renderDoc(rel string) docResult {
 			strings.HasPrefix(src, "/") {
 			return m
 		}
-		resolved, err := resolveSafe(s.cfg.Root, path.Join(docDir, src))
+		resolved, err := s.resolveAbs(path.Join(docDir, src))
 		if err != nil {
 			return m
 		}
-		relPath, err := filepath.Rel(s.cfg.Root, resolved)
+		relPath, err := s.absToNamespacedRel(resolved)
 		if err != nil {
 			return m
 		}
-		return fmt.Sprintf(`<img%s src="/raw/%s"`, attrs, pathEscape(filepath.ToSlash(relPath)))
+		return fmt.Sprintf(`<img%s src="/raw/%s"`, attrs, pathEscape(relPath))
 	})
 
 	title := res.Title
@@ -340,7 +405,11 @@ func (s *Server) renderDoc(rel string) docResult {
 // detectIndex returns the relative path of a README/index file within dir
 // (relative path), or "" if none.
 func (s *Server) detectIndex(dir string) string {
-	absDir, err := resolveSafe(s.cfg.Root, dir)
+	m, rest, ok := s.mountForRel(dir)
+	if !ok {
+		return ""
+	}
+	absDir, err := resolveSafe(m.Abs, rest)
 	if err != nil {
 		return ""
 	}
@@ -378,8 +447,16 @@ func (s *Server) dirListingHTML(rel string) string {
 	if target == nil || len(target.Children) == 0 {
 		return "<p>No markdown files found in this directory.</p>"
 	}
+	heading := rel
+	if rel == "" {
+		if len(s.mounts) > 1 {
+			heading = "roots"
+		} else {
+			heading = filepath.Base(s.cfg.Root)
+		}
+	}
 	var b strings.Builder
-	b.WriteString("<h1>" + html.EscapeString(orDefault(rel, filepath.Base(s.cfg.Root))) + "</h1>")
+	b.WriteString("<h1>" + html.EscapeString(orDefault(heading, filepath.Base(s.cfg.Root))) + "</h1>")
 	b.WriteString(`<ul class="dir-listing">`)
 	for _, c := range target.Children {
 		icon := iconFile
@@ -395,7 +472,11 @@ func (s *Server) dirListingHTML(rel string) string {
 
 func (s *Server) breadcrumbHTML(rel string) string {
 	var b strings.Builder
-	b.WriteString(`<a href="/" data-path="">` + html.EscapeString(filepath.Base(s.cfg.Root)) + `</a>`)
+	if len(s.mounts) > 1 {
+		b.WriteString(`<a href="/" data-path="">roots</a>`)
+	} else {
+		b.WriteString(`<a href="/" data-path="">` + html.EscapeString(filepath.Base(s.cfg.Root)) + `</a>`)
+	}
 	if rel == "" {
 		return b.String()
 	}
@@ -420,12 +501,19 @@ func (s *Server) breadcrumbHTML(rel string) string {
 // ---- Tree HTML ----
 
 func (s *Server) buildTree() (*tree.Node, error) {
-	return tree.Build(tree.Options{
-		Root:   s.cfg.Root,
+	opts := tree.Options{
 		Show:   s.cfg.Show,
 		Ignore: s.cfg.Ignore,
 		Hidden: s.cfg.Hidden,
-	})
+	}
+	if s.cfg.Debug {
+		opts.Logger = s.logger
+	}
+	if len(s.mounts) <= 1 {
+		opts.Root = s.cfg.Root
+		return tree.Build(opts)
+	}
+	return tree.BuildMulti(s.mounts, opts)
 }
 
 func (s *Server) treeHTML() (string, error) {
@@ -433,15 +521,37 @@ func (s *Server) treeHTML() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Top-level entries: for a single root the root node itself (expanded); for
+	// multiple roots, one expanded folder per mount.
+	top := node.Children
+	if len(s.mounts) <= 1 {
+		top = []*tree.Node{node}
+	}
+	// Map each top-level entry name to its absolute path for display.
+	absPath := map[string]string{}
+	if len(s.mounts) <= 1 {
+		absPath[node.Name] = s.cfg.Root
+	} else {
+		for _, m := range s.mounts {
+			absPath[m.Label] = m.Abs
+		}
+	}
 	var b strings.Builder
 	b.WriteString(`<ul class="tree-list">`)
-	b.WriteString(`<li class="tree-item" data-dir="true" data-name="` + html.EscapeString(node.Name) + `">`)
-	b.WriteString(`<span class="tree-label"><span class="tree-toggle">` + caretRight + `</span><span class="tree-icon">` + iconFolder + `</span>` + html.EscapeString(node.Name) + `</span>`)
-	b.WriteString(`<ul class="tree-list">`)
-	for _, c := range node.Children {
-		writeTreeNode(&b, c)
+	for _, c := range top {
+		b.WriteString(`<li class="tree-item" data-dir="true" data-name="` + html.EscapeString(c.Name) + `">`)
+		b.WriteString(`<span class="tree-label"><span class="tree-toggle">` + caretRight + `</span><span class="tree-icon">` + iconFolder + `</span>` + html.EscapeString(c.Name))
+		if ap := absPath[c.Name]; ap != "" {
+			b.WriteString(`<span class="tree-root-path">` + html.EscapeString(ap) + `</span>`)
+		}
+		b.WriteString(`</span>`)
+		b.WriteString(`<ul class="tree-list">`)
+		for _, cc := range c.Children {
+			writeTreeNode(&b, cc)
+		}
+		b.WriteString("</ul></li>")
 	}
-	b.WriteString("</ul></li></ul>")
+	b.WriteString("</ul>")
 	return b.String(), nil
 }
 
@@ -450,7 +560,8 @@ func (s *Server) treeHTML() (string, error) {
 const (
 	caretRight = `<svg class="tree-caret" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg>`
 	iconFolder = `<svg class="tree-svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1.5 3.25c0-.41.34-.75.75-.75h3.19c.2 0 .39.08.53.22l1.06 1.06h7.22c.41 0 .75.34.75.75v7.94c0 .41-.34.75-.75.75H2.25a.75.75 0 0 1-.75-.75V3.25Z"/></svg>`
-	iconFile   = `<svg class="tree-svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 1.75c0-.14.11-.25.25-.25h6.19l3.31 3.31v9.44c0 .14-.11.25-.25.25H3.25a.25.25 0 0 1-.25-.25V1.75Z"/><path d="M9.25 1.75V4.5c0 .14.11.25.25.25h2.75"/></svg>`)
+	iconFile   = `<svg class="tree-svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 1.75c0-.14.11-.25.25-.25h6.19l3.31 3.31v9.44c0 .14-.11.25-.25.25H3.25a.25.25 0 0 1-.25-.25V1.75Z"/><path d="M9.25 1.75V4.5c0 .14.11.25.25.25h2.75"/></svg>`
+)
 
 func writeTreeNode(b *strings.Builder, n *tree.Node) {
 	if n.IsDir {
@@ -471,6 +582,62 @@ func writeTreeNode(b *strings.Builder, n *tree.Node) {
 }
 
 // ---- misc ----
+
+// mountForRel splits a slash-separated request path into the mount it belongs
+// to and the remainder within that mount. For a single root (label ""), rel is
+// returned unchanged. ok is false when rel does not map to any mount.
+func (s *Server) mountForRel(rel string) (m tree.Mount, rest string, ok bool) {
+	rel = strings.TrimPrefix(rel, "/")
+	if len(s.mounts) == 1 && s.mounts[0].Label == "" {
+		return s.mounts[0], rel, true
+	}
+	var label string
+	if i := strings.IndexByte(rel, '/'); i < 0 {
+		label, rest = rel, ""
+	} else {
+		label, rest = rel[:i], rel[i+1:]
+	}
+	for _, m = range s.mounts {
+		if m.Label == label {
+			return m, rest, true
+		}
+	}
+	return tree.Mount{}, "", false
+}
+
+// resolveAbs maps a (possibly namespaced) relative path to an absolute path
+// confined to its mount.
+func (s *Server) resolveAbs(rel string) (string, error) {
+	m, rest, ok := s.mountForRel(rel)
+	if !ok {
+		return "", errOutOfRoot
+	}
+	return resolveSafe(m.Abs, rest)
+}
+
+// absToNamespacedRel is the inverse of resolveAbs: it maps an absolute path
+// back to a slash-separated, mount-namespaced relative path.
+func (s *Server) absToNamespacedRel(abs string) (string, error) {
+	absClean := filepath.Clean(abs)
+	for _, m := range s.mounts {
+		mAbs := filepath.Clean(m.Abs)
+		if absClean == mAbs {
+			return m.Label, nil
+		}
+		if strings.HasPrefix(absClean, mAbs+string(filepath.Separator)) {
+			rel, err := filepath.Rel(mAbs, absClean)
+			if err != nil {
+				return "", err
+			}
+			rel = filepath.ToSlash(rel)
+			if m.Label == "" {
+				return rel, nil
+			}
+			return m.Label + "/" + rel, nil
+		}
+	}
+	return "", errOutOfRoot
+}
 
 func (s *Server) isExcluded(rel string) bool {
 	if rel == "" {

@@ -64,7 +64,7 @@ func (h *sseHub) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	defer h.remove(ch)
 
 	// initial comment to open the stream
-	fmt.Fprint(w, ": connected\n\n")
+	_, _ = fmt.Fprint(w, ": connected\n\n")
 	flusher.Flush()
 
 	ctx := r.Context()
@@ -76,7 +76,7 @@ func (h *sseHub) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", msg.event, msg.data)
+			_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", msg.event, msg.data)
 			flusher.Flush()
 		}
 	}
