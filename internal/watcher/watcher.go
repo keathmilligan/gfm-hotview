@@ -34,14 +34,17 @@ func (e Event) Has(k Kind) bool { return e.Kinds[k] }
 
 // Watcher recursively watches one or more root directories.
 type Watcher struct {
-	roots   []string
-	cssDirs []string
-	ignore  []string
-	fsw     *fsnotify.Watcher
-	Events  chan Event
-	done    chan struct{}
-	pending map[Kind]bool
-	logger  *log.Logger
+	roots      []string
+	cssDirs    []string
+	ignore     []string
+	fsw        *fsnotify.Watcher
+	Events     chan Event
+	done       chan struct{}
+	pending    map[Kind]bool
+	structPths map[string]struct{} // markdown file paths with structural events, resolved at flush
+	knownMd    map[string]bool     // set of known markdown file paths
+	knownDirs  map[string]bool     // set of watched directory paths
+	logger     *log.Logger
 }
 
 // New creates a Watcher over the given roots. cssDirs lists CSS override
@@ -54,14 +57,17 @@ func New(roots []string, cssDirs []string, ignore []string, logger *log.Logger) 
 		return nil, err
 	}
 	w := &Watcher{
-		roots:   roots,
-		cssDirs: cssDirs,
-		ignore:  ignore,
-		fsw:     fsw,
-		Events:  make(chan Event, 8),
-		done:    make(chan struct{}),
-		pending: map[Kind]bool{},
-		logger:  logger,
+		roots:      roots,
+		cssDirs:    cssDirs,
+		ignore:     ignore,
+		fsw:        fsw,
+		Events:     make(chan Event, 8),
+		done:       make(chan struct{}),
+		pending:    map[Kind]bool{},
+		structPths: map[string]struct{}{},
+		knownMd:    map[string]bool{},
+		knownDirs:  map[string]bool{},
+		logger:     logger,
 	}
 	for _, r := range roots {
 		if err := w.addRecursive(r); err != nil {
@@ -80,6 +86,23 @@ func (w *Watcher) Run() {
 	var timerC <-chan time.Time
 
 	flush := func() {
+		// Resolve deferred structural changes: only set KindTree if the set of
+		// markdown files actually changed (not just an atomic re-save that
+		// removed and recreated the same file).
+		for p := range w.structPths {
+			_, err := os.Stat(p)
+			exists := err == nil
+			known := w.knownMd[p]
+			if exists && !known {
+				w.pending[KindTree] = true
+				w.knownMd[p] = true
+			} else if !exists && known {
+				w.pending[KindTree] = true
+				delete(w.knownMd, p)
+			}
+		}
+		w.structPths = map[string]struct{}{}
+
 		if len(w.pending) == 0 {
 			return
 		}
@@ -158,11 +181,13 @@ func (w *Watcher) classify(e fsnotify.Event) bool {
 				return true
 			}
 		} else {
-			// Remove/Rename: the path is gone, so we can't stat it. If the
-			// basename has no file extension it may have been a directory,
-			// so refresh the tree to be safe.
-			if filepath.Ext(name) == "" {
+			// Remove/Rename: the path is gone, so we can't stat it. Only
+			// set KindTree if it was a known watched directory; temp files
+			// without extensions (e.g. vim's 4913) must not trigger a tree
+			// rebuild.
+			if w.knownDirs[name] {
 				w.pending[KindTree] = true
+				delete(w.knownDirs, name)
 				return true
 			}
 		}
@@ -173,8 +198,11 @@ func (w *Watcher) classify(e fsnotify.Event) bool {
 		return false
 	}
 
+	// Markdown file changes.
 	if e.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
-		w.pending[KindTree] = true
+		// Defer to flush time: an atomic save (remove + recreate) should not
+		// trigger a tree rebuild, but a genuinely new or deleted file should.
+		w.structPths[name] = struct{}{}
 	}
 	if e.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename|fsnotify.Remove) != 0 {
 		w.pending[KindContent] = true
@@ -192,15 +220,19 @@ func (w *Watcher) addRecursive(dir string) error {
 		if err != nil {
 			return nil // skip unreadable
 		}
-		if !d.IsDir() {
+		if d.IsDir() {
+			if !w.isRoot(p) && w.skip(p) {
+				return filepath.SkipDir
+			}
+			_ = w.fsw.Add(p)
+			w.knownDirs[p] = true
+			if w.logger != nil {
+				w.logger.Printf("watch: add %s", p)
+			}
 			return nil
 		}
-		if !w.isRoot(p) && w.skip(p) {
-			return filepath.SkipDir
-		}
-		_ = w.fsw.Add(p)
-		if w.logger != nil {
-			w.logger.Printf("watch: add %s", p)
+		if isMarkdown(strings.ToLower(p)) {
+			w.knownMd[p] = true
 		}
 		return nil
 	})

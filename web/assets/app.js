@@ -129,7 +129,7 @@
   function cssEscape(s) { return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/"/g, '\\"'); }
 
   // ---- Navigation ----
-  function navigate(path, push) {
+  function navigate(path, push, keepScroll) {
     fetch("/api/render?path=" + encodeURIComponent(path), { headers: { "Accept": "application/json" } })
       .then(function (r) {
         if (!r.ok) throw new Error("HTTP " + r.status);
@@ -138,12 +138,14 @@
       .then(function (data) {
         currentPath = path;
         document.title = data.title || path || "gfm-hotview";
+        var scrollContainer = contentEl.parentElement;
+        var savedScroll = keepScroll ? scrollContainer.scrollTop : 0;
         contentEl.innerHTML = data.html;
         breadcrumbEl.innerHTML = data.breadcrumb || "";
         renderTOC(data.headings || []);
         enhanceContent();
         markSelected();
-        contentEl.parentElement.scrollTop = 0;
+        scrollContainer.scrollTop = savedScroll;
         if (push !== false) {
           history.pushState({ path: path }, "", "/view/" + path.split("/").map(encodeURIComponent).join("/"));
         }
@@ -265,7 +267,7 @@
     if (!cfg.reload || !window.EventSource) return;
     var status = document.getElementById("reload-status");
     var es = new EventSource("/events");
-    es.addEventListener("content", function () { navigate(currentPath, false); });
+    es.addEventListener("content", function () { navigate(currentPath, false, true); });
     es.addEventListener("tree", function () { refreshTree(); });
     es.addEventListener("css", function () { reloadUserCSS(); });
     es.onopen = function () { if (status) status.hidden = true; };

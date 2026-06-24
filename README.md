@@ -36,6 +36,10 @@ file browser and viewer.
 
 ## Install
 
+Download the latest release for your platform from the [releases
+page](https://github.com/keathmilligan/gfm-hotview/releases/latest), or install
+via a package manager:
+
 Use one of the installation methods below or download the latest release for your platform
 from the [releases page](https://github.com/keathmilligan/gfm-hotview/releases/latest).
 
