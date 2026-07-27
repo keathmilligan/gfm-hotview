@@ -235,7 +235,7 @@
     contentEl.querySelectorAll("h2[id], h3[id], h4[id]").forEach(function (h) { spyObserver.observe(h); });
   }
 
-  // ---- Content enhancement: mermaid + math ----
+  // ---- Content enhancement: mermaid + math + copy buttons ----
   function enhanceContent() {
     if (window.mermaid) {
       try {
@@ -259,7 +259,65 @@
         });
       } catch (e) { /* ignore */ }
     }
+    addCopyButtons();
     setupScrollSpy();
+  }
+
+  // ---- Copy-to-clipboard buttons on code blocks ----
+  var COPY_ICON = '<svg class="copy-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>';
+  var CHECK_ICON = '<svg class="copy-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>';
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      try {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        if (ok) resolve(); else reject(new Error("copy failed"));
+      } catch (e) { reject(e); }
+    });
+  }
+
+  function addCopyButtons() {
+    contentEl.querySelectorAll("pre").forEach(function (pre) {
+      if (pre.classList.contains("mermaid")) return; // diagrams, not copyable text
+      if (pre.parentElement && pre.parentElement.classList.contains("code-block")) return; // already wrapped
+      var wrap = document.createElement("div");
+      wrap.className = "code-block";
+      pre.parentNode.insertBefore(wrap, pre);
+      wrap.appendChild(pre);
+      var btn = document.createElement("button");
+      btn.className = "copy-btn";
+      btn.type = "button";
+      btn.title = "Copy code";
+      btn.setAttribute("aria-label", "Copy code to clipboard");
+      btn.innerHTML = COPY_ICON;
+      btn.addEventListener("click", function () {
+        var code = pre.querySelector("code");
+        var text = (code ? code.textContent : pre.textContent) || "";
+        copyText(text).then(function () {
+          btn.classList.add("copied");
+          btn.innerHTML = CHECK_ICON;
+          btn.title = "Copied!";
+          btn.setAttribute("aria-label", "Copied!");
+          setTimeout(function () {
+            btn.classList.remove("copied");
+            btn.innerHTML = COPY_ICON;
+            btn.title = "Copy code";
+            btn.setAttribute("aria-label", "Copy code to clipboard");
+          }, 1500);
+        });
+      });
+      wrap.appendChild(btn);
+    });
   }
 
   // ---- Live reload (SSE) ----
