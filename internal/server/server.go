@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/local/gfm-hotview/internal/config"
@@ -36,6 +37,10 @@ type Server struct {
 	hub      *sseHub
 	logger   *log.Logger
 	version  string
+
+	treeMu   sync.RWMutex
+	tree     *tree.Node
+	treeHTML string
 }
 
 // New constructs a Server.
@@ -48,7 +53,7 @@ func New(cfg *config.Config, logger *log.Logger, version string) (*Server, error
 	if err != nil {
 		return nil, fmt.Errorf("loading assets: %w", err)
 	}
-	return &Server{
+	s := &Server{
 		cfg:      cfg,
 		mounts:   tree.MakeMounts(cfg.Roots),
 		renderer: render.New(cfg.Mode == config.ModeGFM),
@@ -57,7 +62,11 @@ func New(cfg *config.Config, logger *log.Logger, version string) (*Server, error
 		hub:      newSSEHub(),
 		logger:   logger,
 		version:  version,
-	}, nil
+	}
+	if err := s.rebuildTree(); err != nil {
+		return nil, fmt.Errorf("building tree: %w", err)
+	}
+	return s, nil
 }
 
 // Handler returns the root HTTP handler.
@@ -87,6 +96,9 @@ func (s *Server) NotifyContent() {
 func (s *Server) NotifyTree() {
 	if s.cfg.Debug {
 		s.logger.Printf("sse: broadcast tree")
+	}
+	if err := s.rebuildTree(); err != nil {
+		s.logger.Printf("tree rebuild error: %v", err)
 	}
 	s.hub.broadcast("tree", "1")
 }
@@ -182,11 +194,7 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) renderShell(w http.ResponseWriter, r *http.Request, rel string) {
-	treeHTML, err := s.treeHTML()
-	if err != nil {
-		http.Error(w, "tree error", http.StatusInternalServerError)
-		return
-	}
+	treeHTML := s.cachedTreeHTML()
 
 	doc := s.renderDoc(rel)
 
@@ -212,8 +220,8 @@ func (s *Server) renderShell(w http.ResponseWriter, r *http.Request, rel string)
 // ---- APIs ----
 
 func (s *Server) handleAPITree(w http.ResponseWriter, r *http.Request) {
-	node, err := s.buildTree()
-	if err != nil {
+	node := s.cachedTree()
+	if node == nil {
 		http.Error(w, "tree error", http.StatusInternalServerError)
 		return
 	}
@@ -221,11 +229,7 @@ func (s *Server) handleAPITree(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAPITreeHTML(w http.ResponseWriter, r *http.Request) {
-	html, err := s.treeHTML()
-	if err != nil {
-		http.Error(w, "tree error", http.StatusInternalServerError)
-		return
-	}
+	html := s.cachedTreeHTML()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(html))
 }
@@ -447,8 +451,8 @@ func (s *Server) detectIndex(dir string) string {
 }
 
 func (s *Server) dirListingHTML(rel string) string {
-	node, err := s.buildTree()
-	if err != nil {
+	node := s.cachedTree()
+	if node == nil {
 		return "<p>unable to list directory</p>"
 	}
 	target := node
@@ -511,7 +515,9 @@ func (s *Server) breadcrumbHTML(rel string) string {
 
 // ---- Tree HTML ----
 
-func (s *Server) buildTree() (*tree.Node, error) {
+// rebuildTree scans the filesystem and caches the result plus its HTML
+// rendering. Called once at startup and again when the tree structure changes.
+func (s *Server) rebuildTree() error {
 	opts := tree.Options{
 		Show:   s.cfg.Show,
 		Ignore: s.cfg.Ignore,
@@ -519,18 +525,41 @@ func (s *Server) buildTree() (*tree.Node, error) {
 	if s.cfg.Debug {
 		opts.Logger = s.logger
 	}
+	var node *tree.Node
+	var err error
 	if len(s.mounts) <= 1 {
 		opts.Root = s.cfg.Root
-		return tree.Build(opts)
+		node, err = tree.Build(opts)
+	} else {
+		node, err = tree.BuildMulti(s.mounts, opts)
 	}
-	return tree.BuildMulti(s.mounts, opts)
+	if err != nil {
+		return err
+	}
+	htmlStr := s.renderTreeHTML(node)
+	s.treeMu.Lock()
+	s.tree = node
+	s.treeHTML = htmlStr
+	s.treeMu.Unlock()
+	return nil
 }
 
-func (s *Server) treeHTML() (string, error) {
-	node, err := s.buildTree()
-	if err != nil {
-		return "", err
-	}
+// cachedTree returns the cached tree node, building it on first call if needed.
+func (s *Server) cachedTree() *tree.Node {
+	s.treeMu.RLock()
+	defer s.treeMu.RUnlock()
+	return s.tree
+}
+
+// cachedTreeHTML returns the cached tree HTML.
+func (s *Server) cachedTreeHTML() string {
+	s.treeMu.RLock()
+	defer s.treeMu.RUnlock()
+	return s.treeHTML
+}
+
+// renderTreeHTML produces the sidebar HTML from a tree node.
+func (s *Server) renderTreeHTML(node *tree.Node) string {
 	// Top-level entries: for a single root the root node itself (expanded); for
 	// multiple roots, one expanded folder per mount.
 	top := node.Children
@@ -562,7 +591,7 @@ func (s *Server) treeHTML() (string, error) {
 		b.WriteString("</ul></li>")
 	}
 	b.WriteString("</ul>")
-	return b.String(), nil
+	return b.String()
 }
 
 // Outline-style icons drawn with currentColor strokes (no fill); they inherit

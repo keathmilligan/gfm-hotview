@@ -5,6 +5,7 @@ package watcher
 import (
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -262,7 +263,8 @@ func (w *Watcher) isRoot(p string) bool {
 }
 
 // skip reports whether a directory should not be watched. The .gfm-hotview dir is
-// watched only for its css subdir.
+// watched only for its css subdir. Patterns support glob matching (e.g.
+// ".venv*") via path.Match, mirroring the tree builder's ignore logic.
 func (w *Watcher) skip(dir string) bool {
 	base := filepath.Base(dir)
 	for _, ig := range w.ignore {
@@ -271,6 +273,9 @@ func (w *Watcher) skip(dir string) bool {
 			if ig == ".gfm-hotview" {
 				return false
 			}
+			return true
+		}
+		if ok, _ := path.Match(ig, base); ok {
 			return true
 		}
 	}

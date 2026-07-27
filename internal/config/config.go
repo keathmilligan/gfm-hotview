@@ -27,7 +27,7 @@ const exampleConfigTOML = `# gfm-hotview configuration
 # [server]
 # host = "localhost"
 # port = 6419
-# ignore = [".git", ".hg", ".svn", "node_modules", "vendor", "bower_components", "dist", "build", "target", "out", "__pycache__", ".venv*", "venv", ".pytest_cache", ".cargo", ".cache", "coverage", ".nyc_output", ".DS_Store", ".gfm-hotview"]
+# ignore = [".git", ".hg", ".svn", "node_modules", "vendor", "bower_components", "dist", "build", "target", "out", "__pycache__", ".venv*", "venv", ".pytest_cache", ".ruff_cache", ".mypy_cache", ".tox", "site-packages", ".cargo", ".cache", "coverage", ".nyc_output", ".DS_Store", ".gfm-hotview"]
 `
 
 // Defaults.
@@ -48,7 +48,7 @@ var DefaultIgnore = []string{
 	// Build output
 	"dist", "build", "target", "out",
 	// Python
-	"__pycache__", ".venv*", "venv", ".pytest_cache",
+	"__pycache__", ".venv*", "venv", ".pytest_cache", ".ruff_cache", ".mypy_cache", ".tox", "site-packages",
 	// Rust
 	".cargo",
 	// Cache
@@ -104,10 +104,10 @@ type Config struct {
 // in v1; unknown keys are ignored (optionally warned in verbose mode).
 type fileConfig struct {
 	Server struct {
-		Host *string `toml:"host" yaml:"host" json:"host"`
-		Port *int    `toml:"port" yaml:"port" json:"port"`
+		Host   *string   `toml:"host" yaml:"host" json:"host"`
+		Port   *int      `toml:"port" yaml:"port" json:"port"`
+		Ignore *[]string `toml:"ignore" yaml:"ignore" json:"ignore"`
 	} `toml:"server" yaml:"server" json:"server"`
-	Ignore *[]string `toml:"ignore" yaml:"ignore" json:"ignore"`
 }
 
 // Flags carries values parsed from the command line. A nil pointer means the
@@ -211,8 +211,8 @@ func Resolve(roots []string, f Flags) (*Config, error) {
 					if fc.Server.Port != nil {
 						cfg.Port = *fc.Server.Port
 					}
-					if fc.Ignore != nil {
-						cfg.Ignore = *fc.Ignore
+					if fc.Server.Ignore != nil {
+						cfg.Ignore = *fc.Server.Ignore
 					}
 				}
 			}
@@ -230,8 +230,8 @@ func Resolve(roots []string, f Flags) (*Config, error) {
 				if fc.Server.Port != nil {
 					cfg.Port = *fc.Server.Port
 				}
-				if fc.Ignore != nil {
-					cfg.Ignore = *fc.Ignore
+				if fc.Server.Ignore != nil {
+					cfg.Ignore = *fc.Server.Ignore
 				}
 			}
 
@@ -255,8 +255,8 @@ func Resolve(roots []string, f Flags) (*Config, error) {
 				if fc.Server.Port != nil {
 					cfg.Port = *fc.Server.Port
 				}
-				if fc.Ignore != nil {
-					cfg.Ignore = *fc.Ignore
+				if fc.Server.Ignore != nil {
+					cfg.Ignore = *fc.Server.Ignore
 				}
 			}
 
