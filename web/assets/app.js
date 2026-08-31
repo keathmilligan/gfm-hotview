@@ -130,6 +130,7 @@
 
   // ---- Navigation ----
   function navigate(path, push, keepScroll) {
+    closeMediaZoom();
     fetch("/api/render?path=" + encodeURIComponent(path), { headers: { "Accept": "application/json" } })
       .then(function (r) {
         if (!r.ok) throw new Error("HTTP " + r.status);
@@ -243,7 +244,11 @@
         var dark = theme === "dark" || (theme === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
         window.mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default" });
         var blocks = contentEl.querySelectorAll("pre.mermaid, .mermaid");
-        if (blocks.length) window.mermaid.run({ nodes: blocks });
+        if (blocks.length) {
+          var done = window.mermaid.run({ nodes: blocks });
+          if (done && typeof done.then === "function") done.then(bindMermaidZoom, bindMermaidZoom);
+          else bindMermaidZoom();
+        }
       } catch (e) { /* ignore */ }
     }
     if (window.renderMathInElement) {
@@ -260,12 +265,14 @@
       } catch (e) { /* ignore */ }
     }
     addCopyButtons();
+    bindImageZoom();
     setupScrollSpy();
   }
 
   // ---- Copy-to-clipboard buttons on code blocks ----
   var COPY_ICON = '<svg class="copy-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>';
   var CHECK_ICON = '<svg class="copy-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>';
+  var ZOOM_ICON = '<svg class="zoom-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.75 2A1.75 1.75 0 0 0 2 3.75v2.5a.75.75 0 0 0 1.5 0v-2.5a.25.25 0 0 1 .25-.25h2.5a.75.75 0 0 0 0-1.5ZM10 2a.75.75 0 0 0 0 1.5h2.5a.25.25 0 0 1 .25.25v2.5a.75.75 0 0 0 1.5 0v-2.5A1.75 1.75 0 0 0 12.5 2ZM2.75 10a.75.75 0 0 1 .75.75v2.5c0 .138.112.25.25.25h2.5a.75.75 0 0 1 0 1.5h-2.5A1.75 1.75 0 0 1 2 13.25v-2.5a.75.75 0 0 1 .75-.75Zm11 0a.75.75 0 0 1 .75.75v2.5A1.75 1.75 0 0 1 12.5 15h-2.5a.75.75 0 0 1 0-1.5h2.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 .75-.75Z"/></svg>';
 
   function copyText(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -319,6 +326,263 @@
       wrap.appendChild(btn);
     });
   }
+
+  // ---- Media zoom overlay (Mermaid + images) ----
+  var zoomEl = document.getElementById("media-zoom");
+  var zoomViewport = document.getElementById("media-zoom-viewport");
+  var zoomCanvas = document.getElementById("media-zoom-canvas");
+  var zoomClose = document.getElementById("media-zoom-close");
+  var zoomScale = 1;
+  var zoomTx = 0;
+  var zoomTy = 0;
+  var zoomDragging = false;
+  var zoomMoved = false;
+  var zoomLastX = 0;
+  var zoomLastY = 0;
+  var zoomOrigin = null;
+
+  function applyZoom() {
+    if (!zoomCanvas) return;
+    zoomCanvas.style.transform = "translate(" + zoomTx + "px, " + zoomTy + "px) scale(" + zoomScale + ")";
+  }
+
+  function showZoom(node, nw, nh) {
+    if (!zoomEl || !zoomViewport || !zoomCanvas) return;
+    zoomCanvas.innerHTML = "";
+    zoomCanvas.appendChild(node);
+    zoomEl.hidden = false;
+    document.body.classList.add("media-zoom-open");
+    zoomOrigin = document.activeElement;
+    if (zoomClose) zoomClose.focus();
+    var pad = 64;
+    var vw = zoomViewport.clientWidth;
+    var vh = zoomViewport.clientHeight;
+    var fit = 1;
+    if (nw > 0 && nh > 0 && vw > pad && vh > pad) {
+      fit = Math.min((vw - pad) / nw, (vh - pad) / nh);
+      if (!isFinite(fit) || fit <= 0) fit = 1;
+    }
+    zoomScale = fit;
+    zoomTx = (vw - (nw || 0) * zoomScale) / 2;
+    zoomTy = (vh - (nh || 0) * zoomScale) / 2;
+    applyZoom();
+  }
+
+  function makeZoomButton(title) {
+    var btn = document.createElement("button");
+    btn.className = "media-zoom-btn";
+    btn.type = "button";
+    btn.title = title;
+    btn.setAttribute("aria-label", title);
+    btn.innerHTML = ZOOM_ICON;
+    return btn;
+  }
+
+  function cloneMermaidSvg(svg) {
+    var clone = svg.cloneNode(true);
+    var prefix = "mz" + Date.now() + "-";
+    var idMap = {};
+    clone.querySelectorAll("[id]").forEach(function (n) {
+      var old = n.getAttribute("id");
+      if (!old) return;
+      var neu = prefix + old;
+      idMap[old] = neu;
+      n.setAttribute("id", neu);
+    });
+    var rewriteVal = function (v) {
+      if (!v) return v;
+      var next = v.replace(/url\(#([^)]+)\)/g, function (m, id) {
+        return idMap[id] ? "url(#" + idMap[id] + ")" : m;
+      });
+      if (next.charAt(0) === "#") {
+        var hid = next.slice(1);
+        if (idMap[hid]) next = "#" + idMap[hid];
+      }
+      return next;
+    };
+    clone.querySelectorAll("*").forEach(function (n) {
+      for (var i = 0; i < n.attributes.length; i++) {
+        var a = n.attributes[i];
+        var rewritten = rewriteVal(a.value);
+        if (rewritten !== a.value) n.setAttribute(a.name, rewritten);
+      }
+    });
+    clone.querySelectorAll("style").forEach(function (st) {
+      var t = st.textContent;
+      Object.keys(idMap).sort(function (a, b) { return b.length - a.length; }).forEach(function (old) {
+        t = t.split("#" + old).join("#" + idMap[old]);
+      });
+      st.textContent = t;
+    });
+    return clone;
+  }
+
+  function bindMermaidZoom() {
+    contentEl.querySelectorAll("pre.mermaid, .mermaid").forEach(function (el) {
+      if (el.closest(".mermaid-block")) return;
+      if (!el.querySelector("svg")) return;
+      var wrap = document.createElement("div");
+      wrap.className = "mermaid-block";
+      el.parentNode.insertBefore(wrap, el);
+      wrap.appendChild(el);
+      var btn = makeZoomButton("Zoom diagram");
+      wrap.appendChild(btn);
+      wrap.addEventListener("click", function (e) {
+        if (e.target.closest("a")) return;
+        openMermaidZoom(el);
+      });
+    });
+  }
+
+  function openMermaidZoom(el) {
+    if (!zoomEl || !zoomViewport || !zoomCanvas) return;
+    var svg = el.querySelector("svg");
+    if (!svg) return;
+    var clone = cloneMermaidSvg(svg);
+    var vb = clone.viewBox && clone.viewBox.baseVal;
+    var nw = (vb && vb.width) ? vb.width : 0;
+    var nh = (vb && vb.height) ? vb.height : 0;
+    if (!nw || !nh) {
+      var wAttr = clone.getAttribute("width");
+      var hAttr = clone.getAttribute("height");
+      if (wAttr && !/%$/.test(wAttr)) nw = parseFloat(wAttr) || 0;
+      if (hAttr && !/%$/.test(hAttr)) nh = parseFloat(hAttr) || 0;
+    }
+    if (!nw || !nh) {
+      try {
+        var bbox = svg.getBBox();
+        nw = bbox.width;
+        nh = bbox.height;
+      } catch (err) { /* ignore */ }
+    }
+    if (nw && nh) {
+      clone.setAttribute("width", nw);
+      clone.setAttribute("height", nh);
+      clone.style.width = nw + "px";
+      clone.style.height = nh + "px";
+    }
+    clone.style.maxWidth = "none";
+    showZoom(clone, nw, nh);
+  }
+
+  function bindImageZoom() {
+    contentEl.querySelectorAll("img").forEach(function (img) {
+      if (img.closest(".image-block, .mermaid-block, .mermaid")) return;
+      var wrapTarget = img;
+      if (img.parentElement && img.parentElement.tagName === "A") wrapTarget = img.parentElement;
+      var wrap = document.createElement("span");
+      wrap.className = "image-block";
+      wrapTarget.parentNode.insertBefore(wrap, wrapTarget);
+      wrap.appendChild(wrapTarget);
+      var btn = makeZoomButton("Zoom image");
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openImageZoom(img);
+      });
+      wrap.appendChild(btn);
+      wrap.addEventListener("click", function (e) {
+        if (e.target.closest("a")) return;
+        if (e.target.closest(".media-zoom-btn")) return;
+        openImageZoom(img);
+      });
+    });
+  }
+
+  function openImageZoom(img) {
+    function go() {
+      var nw = img.naturalWidth;
+      var nh = img.naturalHeight;
+      if (!nw || !nh) return;
+      var clone = document.createElement("img");
+      clone.src = img.currentSrc || img.src;
+      clone.alt = img.alt || "";
+      clone.style.maxWidth = "none";
+      clone.style.width = nw + "px";
+      clone.style.height = nh + "px";
+      showZoom(clone, nw, nh);
+    }
+    if (img.complete && img.naturalWidth) go();
+    else img.addEventListener("load", go, { once: true });
+  }
+
+  function closeMediaZoom() {
+    if (!zoomEl || zoomEl.hidden) return;
+    zoomEl.hidden = true;
+    document.body.classList.remove("media-zoom-open");
+    zoomDragging = false;
+    if (zoomViewport) zoomViewport.classList.remove("panning");
+    if (zoomCanvas) zoomCanvas.innerHTML = "";
+    if (zoomOrigin && typeof zoomOrigin.focus === "function") {
+      try { zoomOrigin.focus(); } catch (err) { /* ignore */ }
+    }
+    zoomOrigin = null;
+  }
+
+  if (zoomEl) {
+    zoomEl.addEventListener("wheel", function (e) { e.preventDefault(); }, { passive: false });
+  }
+  if (zoomClose) {
+    zoomClose.addEventListener("click", function (e) {
+      e.stopPropagation();
+      closeMediaZoom();
+    });
+  }
+
+  if (zoomViewport) {
+    zoomViewport.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0) return;
+      if (e.target.closest("#media-zoom-close")) return;
+      zoomDragging = true;
+      zoomMoved = false;
+      zoomLastX = e.clientX;
+      zoomLastY = e.clientY;
+      zoomViewport.classList.add("panning");
+      if (zoomViewport.setPointerCapture) zoomViewport.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    zoomViewport.addEventListener("pointermove", function (e) {
+      if (!zoomDragging) return;
+      var dx = e.clientX - zoomLastX;
+      var dy = e.clientY - zoomLastY;
+      if (!zoomMoved && (dx * dx + dy * dy) > 16) zoomMoved = true;
+      zoomLastX = e.clientX;
+      zoomLastY = e.clientY;
+      zoomTx += dx;
+      zoomTy += dy;
+      applyZoom();
+    });
+    function endPan(e) {
+      if (!zoomDragging) return;
+      zoomDragging = false;
+      zoomViewport.classList.remove("panning");
+      if (!zoomMoved && !e.target.closest("svg, img")) closeMediaZoom();
+    }
+    zoomViewport.addEventListener("pointerup", endPan);
+    zoomViewport.addEventListener("pointercancel", endPan);
+    zoomViewport.addEventListener("wheel", function (e) {
+      e.preventDefault();
+      var rect = zoomViewport.getBoundingClientRect();
+      var mx = e.clientX - rect.left;
+      var my = e.clientY - rect.top;
+      var delta = e.deltaY;
+      if (e.deltaMode === 1) delta *= 16;
+      else if (e.deltaMode === 2) delta *= rect.height;
+      var next = zoomScale * Math.exp(-delta * 0.002);
+      if (next < 0.1) next = 0.1;
+      if (next > 16) next = 16;
+      var worldX = (mx - zoomTx) / zoomScale;
+      var worldY = (my - zoomTy) / zoomScale;
+      zoomScale = next;
+      zoomTx = mx - worldX * zoomScale;
+      zoomTy = my - worldY * zoomScale;
+      applyZoom();
+    }, { passive: false });
+  }
+
+  window.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeMediaZoom();
+  });
 
   // ---- Live reload (SSE) ----
   function connectSSE() {

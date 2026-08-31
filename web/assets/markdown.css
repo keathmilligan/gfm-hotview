@@ -122,6 +122,32 @@ html[data-theme="dark"] .markdown-alert-caution .markdown-alert-title { color: #
 
 .markdown-body .mermaid { background: transparent; text-align: center; }
 
+/* Zoom control on mermaid diagrams and images */
+.markdown-body .mermaid-block { position: relative; margin-bottom: 16px; }
+.markdown-body .mermaid-block > .mermaid { margin-bottom: 0; cursor: zoom-in; }
+.markdown-body .image-block {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+.markdown-body .image-block img { cursor: zoom-in; display: block; max-width: 100%; }
+.markdown-body .media-zoom-btn {
+  position: absolute; top: 8px; right: 8px; z-index: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0;
+  color: var(--gv-muted); background: var(--gv-bg);
+  border: 1px solid var(--gv-border); border-radius: 6px;
+  cursor: pointer; opacity: 0; transition: opacity .12s ease, color .12s ease;
+}
+.markdown-body .mermaid-block:hover .media-zoom-btn,
+.markdown-body .image-block:hover .media-zoom-btn,
+.markdown-body .media-zoom-btn:focus-visible { opacity: 1; }
+.markdown-body .media-zoom-btn:hover { color: var(--gv-fg); background: var(--gv-hover); }
+.markdown-body .media-zoom-btn .zoom-icon {
+  width: 14px; height: 14px;
+  fill: currentColor;
+}
+
 /* Directory listing (no index) */
 .dir-listing { list-style: none; padding-left: 0; }
 .dir-listing li { padding: 4px 0; border-bottom: 1px solid var(--gv-border); }

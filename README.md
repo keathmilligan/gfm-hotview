@@ -28,6 +28,7 @@ file browser and viewer.
   - Heading anchors, emoji shortcodes (`:rocket:`)
   - Code blocks with syntax highlighting
   - Math (`$…$`, `$$…$$`) and Mermaid blocks
+  - Click images or Mermaid diagrams to zoom, pan, and wheel-zoom
 - Markdown file explorer with search
 - Light and dark modes
 - Live reload
@@ -148,4 +149,13 @@ CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -o gfm-hotview-macos .
 go test ./...      # unit tests
 go vet ./...
 gofmt -l .
+```
+
+### Samples
+
+[`samples/`](samples/) is a small GFM tree covering tables, alerts, math,
+Mermaid, images (click to zoom), and relative links. Preview it with:
+
+```sh
+go run . samples
 ```
