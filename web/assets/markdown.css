@@ -127,7 +127,8 @@ html[data-theme="dark"] .markdown-alert-caution .markdown-alert-title { color: #
 .markdown-body .mermaid-block > .mermaid { margin-bottom: 0; cursor: zoom-in; }
 .markdown-body .image-block {
   position: relative;
-  display: inline-block;
+  display: block;
+  width: 100%;
   max-width: 100%;
 }
 .markdown-body .image-block img { cursor: zoom-in; display: block; max-width: 100%; }

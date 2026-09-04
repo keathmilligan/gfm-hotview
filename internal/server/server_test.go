@@ -95,3 +95,36 @@ func TestMultiRootRejectsEscape(t *testing.T) {
 		t.Fatalf("escape should be 404, got %d: %s", rr.Code, rr.Body.String())
 	}
 }
+
+func TestRelativeSVGImageIsRenderedAndServed(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "images"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("![diagram](images/diagram.svg)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5"/></svg>`
+	if err := os.WriteFile(filepath.Join(root, "images", "diagram.svg"), []byte(svg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	s := newMultiRootServer(t, []string{root})
+	h := s.Handler()
+
+	rr := getReq(t, h, "/api/render?path=README.md")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("render status %d: %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `src=\"/raw/images/diagram.svg\"`) {
+		t.Fatalf("SVG source was not rewritten: %s", rr.Body.String())
+	}
+
+	rr = getReq(t, h, "/raw/images/diagram.svg")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("raw SVG status %d: %s", rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("Content-Type"); got != "image/svg+xml" {
+		t.Fatalf("SVG Content-Type = %q, want image/svg+xml", got)
+	}
+}
