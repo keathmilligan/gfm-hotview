@@ -132,6 +132,7 @@ html[data-theme="dark"] .markdown-alert-caution .markdown-alert-title { color: #
   max-width: 100%;
 }
 .markdown-body .image-block img { cursor: zoom-in; display: block; max-width: 100%; }
+.markdown-body .image-block img:not([width]) { width: 100%; height: auto; }
 .markdown-body .media-zoom-btn {
   position: absolute; top: 8px; right: 8px; z-index: 1;
   display: inline-flex; align-items: center; justify-content: center;

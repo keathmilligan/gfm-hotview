@@ -474,13 +474,6 @@
       wrap.className = "image-block";
       wrapTarget.parentNode.insertBefore(wrap, wrapTarget);
       wrap.appendChild(wrapTarget);
-      function sizeWrap() {
-        if (!img.getAttribute("width") && !img.style.width && img.naturalWidth) {
-          wrap.style.width = img.naturalWidth + "px";
-        }
-      }
-      if (img.complete) sizeWrap();
-      else img.addEventListener("load", sizeWrap, { once: true });
       var btn = makeZoomButton("Zoom image");
       btn.addEventListener("click", function (e) {
         e.preventDefault();
