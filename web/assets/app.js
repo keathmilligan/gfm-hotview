@@ -49,84 +49,225 @@
     });
   }
 
-  // ---- Tree: collapse/expand + selection + filter ----
-  function bindTree() {
-    // Clicking a folder label (or its caret) toggles collapse.
-    treeEl.querySelectorAll('.tree-item[data-dir="true"] > .tree-label').forEach(function (label) {
-      label.addEventListener("click", function (e) {
-        e.preventDefault();
-        label.closest(".tree-item").classList.toggle("collapsed");
-      });
+  // ---- Tree: virtualized list + delegated events + filter ----
+  // Row height must match --gv-tree-row in app.css.
+  function treeRowHeight() {
+    var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gv-tree-row"));
+    return v > 0 ? v : 22;
+  }
+  var TREE_INDENT = 14;
+  var TREE_PAD = 4;
+  var treeRoot = null;
+  var treeRows = [];
+  var expandedMap = Object.create(null);
+  var filterQuery = "";
+  var rootPaths = cfg.rootPaths || {};
+  var treeRaf = 0;
+
+  function treeKey(p) { return p || ""; }
+
+  function isMultiRoot(root) {
+    return !!(root && root.name === "" && !root.path);
+  }
+
+  function topLevelNodes(root) {
+    if (!root) return [];
+    if (isMultiRoot(root)) return root.children || [];
+    return [root];
+  }
+
+  function escapeAttr(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;");
+  }
+
+  function applyTreeData(data, preserveExpanded) {
+    treeRoot = data || { name: "", path: "", isDir: true, children: [] };
+    if (!preserveExpanded) expandedMap = Object.create(null);
+    topLevelNodes(treeRoot).forEach(function (n) {
+      var k = treeKey(n.path);
+      if (!preserveExpanded || !Object.prototype.hasOwnProperty.call(expandedMap, k)) {
+        expandedMap[k] = true;
+      }
     });
-    treeEl.querySelectorAll("a.tree-label[data-path]").forEach(function (a) {
-      a.addEventListener("click", function (e) {
-        e.preventDefault();
-        navigate(a.getAttribute("data-path"));
-      });
+    expandAncestors(currentPath);
+    flattenTree();
+    renderTree();
+  }
+
+  function expandAncestors(path) {
+    if (!path) return;
+    var parts = path.split("/");
+    var acc = "";
+    for (var i = 0; i < parts.length - 1; i++) {
+      acc = acc ? acc + "/" + parts[i] : parts[i];
+      expandedMap[acc] = true;
+    }
+    if (treeRoot && !isMultiRoot(treeRoot)) expandedMap[""] = true;
+  }
+
+  function flattenTree() {
+    treeRows = [];
+    var q = filterQuery;
+    function walk(node, depth) {
+      if (!node) return false;
+      if (!node.isDir) {
+        if (q && (node.name || "").toLowerCase().indexOf(q) === -1) return false;
+        treeRows.push({ node: node, depth: depth, isDir: false });
+        return true;
+      }
+      var idx = treeRows.length;
+      treeRows.push({ node: node, depth: depth, isDir: true });
+      var any = false;
+      var open = !!q || !!expandedMap[treeKey(node.path)];
+      var kids = node.children || [];
+      if (open) {
+        for (var i = 0; i < kids.length; i++) {
+          if (walk(kids[i], depth + 1)) any = true;
+        }
+      }
+      if (q && !any) {
+        treeRows.length = idx;
+        return false;
+      }
+      return true;
+    }
+    var tops = topLevelNodes(treeRoot);
+    for (var i = 0; i < tops.length; i++) walk(tops[i], 0);
+  }
+
+  function viewHref(p) {
+    return "/view/" + String(p).split("/").map(encodeURIComponent).join("/");
+  }
+
+  function renderTree() {
+    if (!treeEl) return;
+    var rowH = treeRowHeight();
+    var total = treeRows.length;
+    var viewH = treeEl.clientHeight || 0;
+    var scroll = treeEl.scrollTop;
+    var overscan = 8;
+    var start = Math.max(0, Math.floor(scroll / rowH) - overscan);
+    var vis = Math.ceil((viewH || rowH) / rowH) + overscan * 2;
+    var end = Math.min(total, start + vis);
+    if (viewH === 0 && total > 0) {
+      start = 0;
+      end = Math.min(total, 40);
+    }
+    var top = start * rowH;
+    var height = total * rowH + 16;
+    var html = '<div class="tree-sizer" style="height:' + height + 'px">';
+    html += '<div class="tree-window" style="top:' + top + 'px">';
+    for (var i = start; i < end; i++) html += rowHTML(treeRows[i]);
+    html += "</div></div>";
+    treeEl.innerHTML = html;
+  }
+
+  function rowHTML(row) {
+    var n = row.node;
+    var isDir = row.isDir;
+    var open = isDir && (!!filterQuery || !!expandedMap[treeKey(n.path)]);
+    var sel = !isDir && n.path === currentPath;
+    var pad = TREE_PAD + row.depth * TREE_INDENT;
+    var cls = "tree-item";
+    if (isDir && !open) cls += " collapsed";
+    if (sel) cls += " selected";
+    var abs = "";
+    if (row.depth === 0 && rootPaths[n.name]) {
+      abs = '<span class="tree-root-path">' + escapeHTML(rootPaths[n.name]) + "</span>";
+    }
+    var inner = '<span class="tree-toggle"></span><span class="tree-icon"></span>' +
+      escapeHTML(n.name || "") + abs;
+    var label = isDir
+      ? '<span class="tree-label">' + inner + "</span>"
+      : '<a class="tree-label" href="' + escapeAttr(viewHref(n.path)) + '">' + inner + "</a>";
+    return '<div class="' + cls + '" data-dir="' + (isDir ? "true" : "false") +
+      '" data-path="' + escapeAttr(n.path || "") +
+      '" data-name="' + escapeAttr(n.name || "") +
+      '" style="padding-left:' + pad + 'px">' + label + "</div>";
+  }
+
+  function scheduleRenderTree() {
+    if (treeRaf) return;
+    treeRaf = requestAnimationFrame(function () {
+      treeRaf = 0;
+      renderTree();
     });
-    markSelected();
+  }
+
+  function ensureRowVisible(path) {
+    if (!treeEl) return;
+    for (var i = 0; i < treeRows.length; i++) {
+      if (treeRows[i].node.path === path) {
+        var rowH = treeRowHeight();
+        var top = i * rowH;
+        var viewTop = treeEl.scrollTop;
+        var viewBot = viewTop + treeEl.clientHeight;
+        if (top < viewTop) treeEl.scrollTop = top;
+        else if (top + rowH > viewBot) treeEl.scrollTop = Math.max(0, top + rowH - treeEl.clientHeight);
+        return;
+      }
+    }
   }
 
   function markSelected() {
-    treeEl.querySelectorAll(".tree-item.selected").forEach(function (n) { n.classList.remove("selected"); });
-    var a = treeEl.querySelector('a.tree-label[data-path="' + cssEscape(currentPath) + '"]');
-    if (a) {
-      var li = a.closest(".tree-item");
-      li.classList.add("selected");
-      // expand ancestors
-      var p = li.parentElement;
-      while (p && p !== treeEl) {
-        if (p.classList && p.classList.contains("tree-item")) {
-          p.classList.remove("collapsed");
-        }
-        p = p.parentElement;
-      }
-      scrollIntoViewVertical(a);
-    }
+    expandAncestors(currentPath);
+    flattenTree();
+    ensureRowVisible(currentPath);
+    renderTree();
   }
 
-  // Scroll the tree vertically to reveal an element without ever changing the
-  // horizontal scroll position (scrollIntoView would scroll sideways too).
-  function scrollIntoViewVertical(el) {
-    var container = treeEl;
-    var cRect = container.getBoundingClientRect();
-    var eRect = el.getBoundingClientRect();
-    if (eRect.top < cRect.top) {
-      container.scrollTop -= cRect.top - eRect.top;
-    } else if (eRect.bottom > cRect.bottom) {
-      container.scrollTop += eRect.bottom - cRect.bottom;
-    }
+  if (treeEl) {
+    treeEl.addEventListener("scroll", scheduleRenderTree);
+    treeEl.addEventListener("click", function (e) {
+      var item = e.target.closest(".tree-item");
+      if (!item || !treeEl.contains(item)) return;
+      e.preventDefault();
+      var path = item.getAttribute("data-path") || "";
+      if (item.getAttribute("data-dir") === "true") {
+        expandedMap[treeKey(path)] = !expandedMap[treeKey(path)];
+        flattenTree();
+        renderTree();
+      } else {
+        navigate(path);
+      }
+    });
   }
+  window.addEventListener("resize", scheduleRenderTree);
 
   var filter = document.getElementById("filter");
   if (filter) {
     filter.addEventListener("input", function () {
-      var q = filter.value.trim().toLowerCase();
-      treeEl.querySelectorAll(".tree-item").forEach(function (item) {
-        if (item.getAttribute("data-dir") === "true") return;
-        var name = (item.getAttribute("data-name") || "").toLowerCase();
-        item.classList.toggle("hidden-by-filter", q !== "" && name.indexOf(q) === -1);
-      });
-      // hide dirs with no visible file descendants; expand dirs that match.
-      treeEl.querySelectorAll('.tree-item[data-dir="true"]').forEach(function (dir) {
-        var anyVisible = dir.querySelector('.tree-item[data-dir="false"]:not(.hidden-by-filter)');
-        dir.classList.toggle("hidden-by-filter", q !== "" && !anyVisible);
-        if (q !== "" && anyVisible) dir.classList.remove("collapsed");
-      });
+      filterQuery = filter.value.trim().toLowerCase();
+      flattenTree();
+      renderTree();
     });
   }
 
   function setAllCollapsed(collapsed) {
-    treeEl.querySelectorAll('.tree-item[data-dir="true"]').forEach(function (dir) {
-      dir.classList.toggle("collapsed", collapsed);
-    });
+    function walk(n) {
+      if (!n || !n.isDir) return;
+      expandedMap[treeKey(n.path)] = !collapsed;
+      var kids = n.children || [];
+      for (var i = 0; i < kids.length; i++) walk(kids[i]);
+    }
+    if (treeRoot) {
+      if (isMultiRoot(treeRoot)) {
+        var kids = treeRoot.children || [];
+        for (var i = 0; i < kids.length; i++) walk(kids[i]);
+      } else {
+        walk(treeRoot);
+      }
+    }
+    flattenTree();
+    renderTree();
   }
   var expandAllBtn = document.getElementById("expand-all");
   var collapseAllBtn = document.getElementById("collapse-all");
   if (expandAllBtn) expandAllBtn.addEventListener("click", function () { setAllCollapsed(false); });
   if (collapseAllBtn) collapseAllBtn.addEventListener("click", function () { setAllCollapsed(true); });
-
-  function cssEscape(s) { return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/"/g, '\\"'); }
 
   // ---- Navigation ----
   function navigate(path, push, keepScroll) {
@@ -601,9 +742,13 @@
   }
 
   function refreshTree() {
-    fetch("/api/tree-html").then(function (r) { return r.text(); }).then(function (html) {
-      treeEl.innerHTML = html;
-      bindTree();
+    var st = treeEl ? treeEl.scrollTop : 0;
+    fetch("/api/tree").then(function (r) { return r.json(); }).then(function (data) {
+      applyTreeData(data, true);
+      if (treeEl) {
+        treeEl.scrollTop = st;
+        renderTree();
+      }
     }).catch(function () {});
   }
 
@@ -613,7 +758,15 @@
   }
 
   // ---- init ----
-  bindTree();
+  if (cfg.tree) {
+    applyTreeData(cfg.tree, false);
+    if (currentPath) {
+      ensureRowVisible(currentPath);
+      renderTree();
+    }
+  } else {
+    refreshTree();
+  }
   enhanceContent();
   connectSSE();
 })();

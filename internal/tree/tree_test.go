@@ -65,6 +65,38 @@ func TestBuildShowsDotfilesByDefault(t *testing.T) {
 	}
 }
 
+func TestBuildFollowsSymlinkDir(t *testing.T) {
+	root := t.TempDir()
+	real := filepath.Join(root, "real")
+	if err := os.Mkdir(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(real, "in.md"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(real, filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+
+	node, err := Build(Options{Root: root, Show: []string{"*.md"}, Ignore: nil})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, c := range node.Children {
+		if c.Name == "link" && c.IsDir {
+			for _, k := range c.Children {
+				if k.Name == "in.md" && !k.IsDir {
+					found = true
+				}
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("symlink dir not followed: %+v", node.Children)
+	}
+}
+
 func TestMakeMountsSingleHasEmptyLabel(t *testing.T) {
 	m := MakeMounts([]string{"/tmp/proj"})
 	if len(m) != 1 || m[0].Label != "" || m[0].Abs != "/tmp/proj" {

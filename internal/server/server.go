@@ -38,9 +38,10 @@ type Server struct {
 	logger   *log.Logger
 	version  string
 
-	treeMu   sync.RWMutex
-	tree     *tree.Node
-	treeHTML string
+	treeMu        sync.RWMutex
+	tree          *tree.Node
+	treeJSON      []byte
+	rootPathsJSON []byte
 }
 
 // New constructs a Server.
@@ -63,6 +64,7 @@ func New(cfg *config.Config, logger *log.Logger, version string) (*Server, error
 		logger:   logger,
 		version:  version,
 	}
+	s.rootPathsJSON = marshalRootPaths(cfg, s.mounts)
 	if err := s.rebuildTree(); err != nil {
 		return nil, fmt.Errorf("building tree: %w", err)
 	}
@@ -76,7 +78,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/view/", s.handleView)
 	mux.HandleFunc("/raw/", s.handleRaw)
 	mux.HandleFunc("/api/tree", s.handleAPITree)
-	mux.HandleFunc("/api/tree-html", s.handleAPITreeHTML)
 	mux.HandleFunc("/api/render", s.handleAPIRender)
 	mux.HandleFunc("/user.css", s.handleUserCSS)
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(s.assets))))
@@ -165,11 +166,12 @@ type pageData struct {
 	BrandName       string
 	Version         string
 	Theme           string
-	TreeHTML        template.HTML
 	BreadcrumbHTML  template.HTML
 	ContentHTML     template.HTML
 	TOCHTML         template.HTML
 	InitialPathJSON template.JS
+	TreeJSON        template.JS
+	RootPathsJSON   template.JS
 	Reload          bool
 }
 
@@ -194,21 +196,28 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) renderShell(w http.ResponseWriter, r *http.Request, rel string) {
-	treeHTML := s.cachedTreeHTML()
-
 	doc := s.renderDoc(rel)
 
 	jsonPath, _ := json.Marshal(rel)
+	treeJSON := s.cachedTreeJSON()
+	if len(treeJSON) == 0 {
+		treeJSON = []byte("null")
+	}
+	rootPathsJSON := s.rootPathsJSON
+	if len(rootPathsJSON) == 0 {
+		rootPathsJSON = []byte("{}")
+	}
 	data := pageData{
 		Title:           orDefault(doc.title, "gfm-hotview"),
 		BrandName:       "gfm-hotview",
 		Version:         s.version,
 		Theme:           string(s.cfg.Theme),
-		TreeHTML:        template.HTML(treeHTML),
 		BreadcrumbHTML:  template.HTML(doc.breadcrumb),
 		ContentHTML:     template.HTML(doc.html),
 		TOCHTML:         "",
 		InitialPathJSON: template.JS(jsonPath),
+		TreeJSON:        template.JS(treeJSON),
+		RootPathsJSON:   template.JS(rootPathsJSON),
 		Reload:          !s.cfg.NoReload,
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -220,18 +229,13 @@ func (s *Server) renderShell(w http.ResponseWriter, r *http.Request, rel string)
 // ---- APIs ----
 
 func (s *Server) handleAPITree(w http.ResponseWriter, r *http.Request) {
-	node := s.cachedTree()
-	if node == nil {
+	b := s.cachedTreeJSON()
+	if len(b) == 0 {
 		http.Error(w, "tree error", http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, node)
-}
-
-func (s *Server) handleAPITreeHTML(w http.ResponseWriter, r *http.Request) {
-	html := s.cachedTreeHTML()
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(html))
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, _ = w.Write(b)
 }
 
 type renderResponse struct {
@@ -474,12 +478,12 @@ func (s *Server) dirListingHTML(rel string) string {
 	b.WriteString("<h1>" + html.EscapeString(orDefault(heading, filepath.Base(s.cfg.Root))) + "</h1>")
 	b.WriteString(`<ul class="dir-listing">`)
 	for _, c := range target.Children {
-		icon := iconFile
+		iconClass := "listing-icon"
 		if c.IsDir {
-			icon = iconFolder
+			iconClass = "listing-icon is-dir"
 		}
 		href := "/view/" + pathEscape(c.Path)
-		b.WriteString(`<li>` + icon + ` <a href="` + href + `" data-path="` + html.EscapeString(c.Path) + `">` + html.EscapeString(c.Name) + `</a></li>`)
+		b.WriteString(`<li><span class="` + iconClass + `" aria-hidden="true"></span> <a href="` + href + `" data-path="` + html.EscapeString(c.Path) + `">` + html.EscapeString(c.Name) + `</a></li>`)
 	}
 	b.WriteString("</ul>")
 	return b.String()
@@ -513,10 +517,10 @@ func (s *Server) breadcrumbHTML(rel string) string {
 	return b.String()
 }
 
-// ---- Tree HTML ----
+// ---- Tree ----
 
-// rebuildTree scans the filesystem and caches the result plus its HTML
-// rendering. Called once at startup and again when the tree structure changes.
+// rebuildTree scans the filesystem and caches the result plus its JSON.
+// Called once at startup and again when the tree structure changes.
 func (s *Server) rebuildTree() error {
 	opts := tree.Options{
 		Show:   s.cfg.Show,
@@ -536,10 +540,13 @@ func (s *Server) rebuildTree() error {
 	if err != nil {
 		return err
 	}
-	htmlStr := s.renderTreeHTML(node)
+	raw, jerr := json.Marshal(node)
+	if jerr != nil {
+		return jerr
+	}
 	s.treeMu.Lock()
 	s.tree = node
-	s.treeHTML = htmlStr
+	s.treeJSON = raw
 	s.treeMu.Unlock()
 	return nil
 }
@@ -551,73 +558,27 @@ func (s *Server) cachedTree() *tree.Node {
 	return s.tree
 }
 
-// cachedTreeHTML returns the cached tree HTML.
-func (s *Server) cachedTreeHTML() string {
+// cachedTreeJSON returns the cached compact tree JSON.
+func (s *Server) cachedTreeJSON() []byte {
 	s.treeMu.RLock()
 	defer s.treeMu.RUnlock()
-	return s.treeHTML
+	return s.treeJSON
 }
 
-// renderTreeHTML produces the sidebar HTML from a tree node.
-func (s *Server) renderTreeHTML(node *tree.Node) string {
-	// Top-level entries: for a single root the root node itself (expanded); for
-	// multiple roots, one expanded folder per mount.
-	top := node.Children
-	if len(s.mounts) <= 1 {
-		top = []*tree.Node{node}
-	}
-	// Map each top-level entry name to its absolute path for display.
-	absPath := map[string]string{}
-	if len(s.mounts) <= 1 {
-		absPath[node.Name] = s.cfg.Root
+func marshalRootPaths(cfg *config.Config, mounts []tree.Mount) []byte {
+	m := map[string]string{}
+	if len(mounts) <= 1 {
+		m[filepath.Base(cfg.Root)] = cfg.Root
 	} else {
-		for _, m := range s.mounts {
-			absPath[m.Label] = m.Abs
+		for _, mt := range mounts {
+			m[mt.Label] = mt.Abs
 		}
 	}
-	var b strings.Builder
-	b.WriteString(`<ul class="tree-list">`)
-	for _, c := range top {
-		b.WriteString(`<li class="tree-item" data-dir="true" data-name="` + html.EscapeString(c.Name) + `">`)
-		b.WriteString(`<span class="tree-label"><span class="tree-toggle">` + caretRight + `</span><span class="tree-icon">` + iconFolder + `</span>` + html.EscapeString(c.Name))
-		if ap := absPath[c.Name]; ap != "" {
-			b.WriteString(`<span class="tree-root-path">` + html.EscapeString(ap) + `</span>`)
-		}
-		b.WriteString(`</span>`)
-		b.WriteString(`<ul class="tree-list">`)
-		for _, cc := range c.Children {
-			writeTreeNode(&b, cc)
-		}
-		b.WriteString("</ul></li>")
+	b, err := json.Marshal(m)
+	if err != nil {
+		return []byte("{}")
 	}
-	b.WriteString("</ul>")
-	return b.String()
-}
-
-// Outline-style icons drawn with currentColor strokes (no fill); they inherit
-// text color.
-const (
-	caretRight = `<svg class="tree-caret" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg>`
-	iconFolder = `<svg class="tree-svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1.5 3.25c0-.41.34-.75.75-.75h3.19c.2 0 .39.08.53.22l1.06 1.06h7.22c.41 0 .75.34.75.75v7.94c0 .41-.34.75-.75.75H2.25a.75.75 0 0 1-.75-.75V3.25Z"/></svg>`
-	iconFile   = `<svg class="tree-svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 1.75c0-.14.11-.25.25-.25h6.19l3.31 3.31v9.44c0 .14-.11.25-.25.25H3.25a.25.25 0 0 1-.25-.25V1.75Z"/><path d="M9.25 1.75V4.5c0 .14.11.25.25.25h2.75"/></svg>`
-)
-
-func writeTreeNode(b *strings.Builder, n *tree.Node) {
-	if n.IsDir {
-		// Collapsed by default.
-		b.WriteString(`<li class="tree-item collapsed" data-dir="true" data-name="` + html.EscapeString(n.Name) + `">`)
-		b.WriteString(`<span class="tree-label"><span class="tree-toggle">` + caretRight + `</span><span class="tree-icon">` + iconFolder + `</span>` + html.EscapeString(n.Name) + `</span>`)
-		b.WriteString(`<ul class="tree-list">`)
-		for _, c := range n.Children {
-			writeTreeNode(b, c)
-		}
-		b.WriteString("</ul></li>")
-		return
-	}
-	href := "/view/" + pathEscape(n.Path)
-	b.WriteString(`<li class="tree-item" data-dir="false" data-name="` + html.EscapeString(n.Name) + `">`)
-	b.WriteString(`<a class="tree-label" href="` + href + `" data-path="` + html.EscapeString(n.Path) + `"><span class="tree-toggle"></span><span class="tree-icon">` + iconFile + `</span>` + html.EscapeString(n.Name) + `</a>`)
-	b.WriteString("</li>")
+	return b
 }
 
 // ---- misc ----

@@ -117,15 +117,23 @@ func build(opts Options, absDir, relDir string) ([]*Node, error) {
 			}
 			continue
 		}
-		// Resolve symlinks for type but never traverse outside root.
-		info, ierr := e.Info()
-		if ierr != nil {
-			continue
-		}
 		rel := joinRel(relDir, name)
+		childAbs := filepath.Join(absDir, name)
 
-		if e.IsDir() || (info.Mode()&fs.ModeSymlink != 0 && isDir(filepath.Join(absDir, name))) {
-			childAbs := filepath.Join(absDir, name)
+		typ := e.Type()
+		if typ&fs.ModeIrregular != 0 {
+			info, ierr := e.Info()
+			if ierr != nil {
+				continue
+			}
+			typ = info.Mode()
+		}
+		dir := typ.IsDir()
+		if typ&fs.ModeSymlink != 0 {
+			dir = isDir(childAbs) // follow symlink to detect directories
+		}
+
+		if dir {
 			kids, berr := build(opts, childAbs, rel)
 			if berr != nil {
 				// Skip unreadable directories rather than failing the whole tree.

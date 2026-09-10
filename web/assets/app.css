@@ -13,6 +13,10 @@
   --gv-folder: #0969da;
   --gv-sidebar-width: 300px;
   --gv-header-height: 45px;
+  --gv-tree-row: 22px;
+  --gv-icon-folder: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.5 3.25c0-.41.34-.75.75-.75h3.19c.2 0 .39.08.53.22l1.06 1.06h7.22c.41 0 .75.34.75.75v7.94c0 .41-.34.75-.75.75H2.25a.75.75 0 0 1-.75-.75V3.25Z'/%3E%3C/svg%3E");
+  --gv-icon-file: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 1.75c0-.14.11-.25.25-.25h6.19l3.31 3.31v9.44c0 .14-.11.25-.25.25H3.25a.25.25 0 0 1-.25-.25V1.75Z'/%3E%3Cpath d='M9.25 1.75V4.5c0 .14.11.25.25.25h2.75'/%3E%3C/svg%3E");
+  --gv-icon-caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 2.5 8 6l-3.5 3.5'/%3E%3C/svg%3E");
 }
 
 html[data-theme="dark"] {
@@ -132,54 +136,78 @@ html, body {
 }
 #tree {
   overflow: auto;
-  padding: 0 6px 16px;
+  padding: 0 6px;
   flex: 1;
+  position: relative;
 }
 
-/* Tree nodes */
-.tree-list { list-style: none; margin: 0; padding-left: 14px; }
-#tree > .tree-list { padding-left: 4px; }
-.tree-item { white-space: nowrap; }
+/* Tree nodes — virtualized; row height must match --gv-tree-row / JS. */
+.tree-sizer { position: relative; }
+.tree-window { position: absolute; left: 0; right: 0; }
+.tree-item {
+  height: var(--gv-tree-row);
+  white-space: nowrap;
+  box-sizing: border-box;
+}
 .tree-label {
   display: flex; align-items: center; gap: 4px;
-  padding: 3px 6px; border-radius: 6px; cursor: pointer;
+  height: var(--gv-tree-row);
+  padding: 0 6px; border-radius: 6px; cursor: pointer;
   color: var(--gv-fg); text-decoration: none;
   width: max-content; min-width: 100%;
+  box-sizing: border-box;
 }
 .tree-label:hover { background: var(--gv-hover); }
 .tree-item.selected > .tree-label { background: var(--gv-selected); font-weight: 600; }
 .tree-toggle {
   width: 12px; height: 12px; flex: none;
-  display: inline-flex; align-items: center; justify-content: center;
   color: var(--gv-muted); user-select: none;
-}
-.tree-caret {
-  fill: none; stroke: currentColor; stroke-width: 1.5;
-  stroke-linecap: round; stroke-linejoin: round;
+  background: currentColor;
+  -webkit-mask: var(--gv-icon-caret) center / contain no-repeat;
+  mask: var(--gv-icon-caret) center / contain no-repeat;
   transition: transform .12s ease;
 }
-.tree-item:not(.collapsed) > .tree-label .tree-caret { transform: rotate(90deg); }
-.tree-item.collapsed > .tree-list { display: none; }
+.tree-item[data-dir="false"] .tree-toggle {
+  background: none;
+  -webkit-mask: none;
+  mask: none;
+}
+.tree-item[data-dir="true"]:not(.collapsed) .tree-toggle { transform: rotate(90deg); }
 .tree-icon {
   width: 16px; height: 16px; flex: none;
-  display: inline-flex; align-items: center; justify-content: center;
+  background: currentColor;
   color: var(--gv-muted);
+  -webkit-mask: var(--gv-icon-file) center / contain no-repeat;
+  mask: var(--gv-icon-file) center / contain no-repeat;
 }
-.tree-svg {
-  fill: none; stroke: currentColor; stroke-width: 1.25;
-  stroke-linecap: round; stroke-linejoin: round;
+.tree-item[data-dir="true"] .tree-icon {
+  color: var(--gv-folder);
+  -webkit-mask-image: var(--gv-icon-folder);
+  mask-image: var(--gv-icon-folder);
 }
-.tree-item.hidden-by-filter { display: none; }
 
 /* Absolute path shown next to a root entry: small, deemphasized. */
 .tree-root-path { font-size: 0.8em; color: var(--gv-muted); font-weight: 400; margin-left: 6px; }
 
 /* Folders: light blue, bold label and icon */
 .tree-item[data-dir="true"] > .tree-label { color: var(--gv-folder); font-weight: 600; }
-.tree-item[data-dir="true"] > .tree-label .tree-icon { color: var(--gv-folder); }
 
-/* Directory listing icons (outline, inline) */
-.dir-listing .tree-svg { vertical-align: -2px; margin-right: 4px; }
+/* Directory listing icons (CSS masks, not per-item SVG) */
+.listing-icon {
+  display: inline-block;
+  width: 16px; height: 16px;
+  vertical-align: -2px;
+  margin-right: 4px;
+  background: currentColor;
+  color: var(--gv-muted);
+  -webkit-mask: var(--gv-icon-file) center / contain no-repeat;
+  mask: var(--gv-icon-file) center / contain no-repeat;
+}
+.listing-icon.is-dir {
+  color: var(--gv-folder);
+  -webkit-mask-image: var(--gv-icon-folder);
+  mask-image: var(--gv-icon-folder);
+}
 
 /* Resizer */
 #resizer {

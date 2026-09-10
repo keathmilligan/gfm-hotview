@@ -1,16 +1,16 @@
 ---
 id: image-zoom-view
-status: review
+status: accepted
 features: [ui]
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-09-08
 ---
 
 # Image zoom view
 
 | Created | Updated |
 | --- | --- |
-| 2026-08-30 | 2026-08-30 |
+| 2026-08-30 | 2026-09-08 |
 
 ## Why
 
@@ -44,3 +44,4 @@ images have the same problem when they are large or detailed.
 | --- | --- |
 | 2026-08-30 | Initial proposal; implementing on explicit request |
 | 2026-08-30 | Implementation complete; awaiting review |
+| 2026-09-08 | Accepted; `ui` spec updated; archived |

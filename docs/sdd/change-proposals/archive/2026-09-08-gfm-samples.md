@@ -1,16 +1,16 @@
 ---
 id: gfm-samples
-status: review
+status: accepted
 features: [samples]
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-09-08
 ---
 
 # GFM samples directory
 
 | Created | Updated |
 | --- | --- |
-| 2026-08-30 | 2026-08-30 |
+| 2026-08-30 | 2026-09-08 |
 
 ## Why
 
@@ -43,3 +43,4 @@ those easy to preview and to regression-check by eye.
 | --- | --- |
 | 2026-08-30 | Initial proposal; implementing on explicit create request |
 | 2026-08-30 | Implementation complete; awaiting review |
+| 2026-09-08 | Accepted; `samples` spec created; archived |

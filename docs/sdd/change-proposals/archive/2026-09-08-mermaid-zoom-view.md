@@ -1,16 +1,16 @@
 ---
 id: mermaid-zoom-view
-status: review
+status: accepted
 features: [ui]
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-09-08
 ---
 
 # Mermaid diagram zoom view
 
 | Created | Updated |
 | --- | --- |
-| 2026-08-30 | 2026-08-30 |
+| 2026-08-30 | 2026-09-08 |
 
 ## Why
 
@@ -51,3 +51,4 @@ inspect a diagram full-screen, pan around, and zoom in.
 | 2026-08-30 | Initial proposal |
 | 2026-08-30 | Approved; open questions resolved; implementing |
 | 2026-08-30 | Implementation complete; awaiting review |
+| 2026-09-08 | Accepted; `ui` spec created; archived |
